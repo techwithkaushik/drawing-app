@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent">
+
+    <com.ask2784.drawingpaint.PaintView
+         android:layout_height="match_parent"
+         android:layout_width="match_parent"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentRight="true"
+         android:layout_alignParentBottom="true"
+         android:layout_alignParentTop="true"
+         android:id="@+id/drawLayout" />
+
+    <com.google.android.material.slider.RangeSlider
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:visibility="gone"
+         android:layout_marginEnd="20dp"
+         android:layout_above="@id/ll1"
+         android:layout_alignParentEnd="true"
+         android:layout_marginStart="20dp"
+         android:layout_alignParentStart="true"
+         android:id="@+id/changeSize" />
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:layout_marginBottom="16dp"
+         android:orientation="vertical"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentBottom="true"
+         android:layout_alignParentStart="true"
+         android:id="@+id/ll1">
+
+        <LinearLayout
+             android:layout_height="match_parent"
+             android:layout_width="wrap_content"
+             android:orientation="horizontal"
+             android:layout_alignParentEnd="true"
+             android:layout_alignParentBottom="true"
+             android:layout_alignParentStart="true">
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="4dp"
+                 android:layout_weight="1"
+                 android:text="undo"
+                 android:id="@+id/undo" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="redo"
+                 android:id="@+id/redo" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="clear"
+                 android:id="@+id/clear_drawing" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="4dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="select"
+                 android:id="@+id/select_path" />
+
+        </LinearLayout>
+
+        <LinearLayout
+             android:layout_height="match_parent"
+             android:layout_width="wrap_content"
+             android:orientation="horizontal"
+             android:layout_alignParentEnd="true"
+             android:layout_alignParentBottom="true"
+             android:layout_alignParentStart="true">
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="4dp"
+                 android:layout_weight="1"
+                 android:text="save"
+                 android:id="@+id/save_image" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="color"
+                 android:id="@+id/change_color" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="2dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="size"
+                 android:id="@+id/stroke_size" />
+
+            <Button
+                 android:layout_height="40dp"
+                 android:layout_width="100dp"
+                 android:layout_marginEnd="4dp"
+                 android:layout_marginStart="2dp"
+                 android:layout_weight="1"
+                 android:text="draw"
+                 android:id="@+id/draw" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>
