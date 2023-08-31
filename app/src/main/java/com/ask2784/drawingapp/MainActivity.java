@@ -1,10 +1,11 @@
-package com.ask2784.drawingpaint;
+package com.ask2784.drawingapp;
 
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
+
 import androidx.appcompat.app.AppCompatActivity;
-import com.ask2784.drawingpaint.databinding.ActivityMainBinding;
+
+import com.ask2784.drawingapp.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
@@ -15,9 +16,7 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         binding.newDrawing.setOnClickListener(
-                v -> {
-                    startActivity(new Intent(this, DrawingActivity.class));
-                });
+                v -> startActivity(new Intent(this, DrawingActivity.class)));
     }
 
     @Override

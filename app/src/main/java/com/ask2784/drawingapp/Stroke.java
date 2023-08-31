@@ -1,4 +1,4 @@
-package com.ask2784.drawingpaint;
+package com.ask2784.drawingapp;
 
 import android.graphics.Path;
 
@@ -14,14 +14,6 @@ public class Stroke {
     // represent the path drawn
     public Path path;
     public int position;
-
-    // constructor to initialise the attributes
-    public Stroke(int color, float strokeWidth, Path path, int position) {
-        this.color = color;
-        this.strokeWidth = strokeWidth;
-        this.path = path;
-        this.position = position;
-    }
 
     public Stroke(int color, float strokeWidth, Path path) {
         this.color = color;

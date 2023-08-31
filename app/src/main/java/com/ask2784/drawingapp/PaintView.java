@@ -1,65 +1,50 @@
-package com.ask2784.drawingpaint;
+package com.ask2784.drawingapp;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BlendMode;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PathMeasure;
-import android.graphics.PointF;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.util.AttributeSet;
-import android.view.DragEvent;
 import android.view.GestureDetector;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.GestureDetectorCompat;
-
-import com.ask2784.drawingpaint.databinding.ModifyStrokeBinding;
-import com.google.android.material.slider.RangeSlider;
-
-import yuku.ambilwarna.AmbilWarnaDialog;
 
 import java.util.ArrayList;
 
 public class PaintView extends View {
     private static final float TOLERANCE = 5;
+    private final ArrayList<Stroke> redoPaths = new ArrayList<>();
+    private final ArrayList<Stroke> paths = new ArrayList<>();
+    private final GestureDetectorCompat gestureDetector;
+    private final RectF expandedBounds = new RectF();
+    boolean isDraw = true;
+    SharedPreferences settings =
+            getContext().getSharedPreferences("PAINTVIEW", Context.MODE_PRIVATE);
     private float mX, mY, endX, endY;
     private Paint dPaint;
     private Path mPath;
     private int currentColor;
-    private ArrayList<Stroke> paths = new ArrayList<>();
-    private final ArrayList<Stroke> redoPaths = new ArrayList<>();
     private float currentStrokeWidth = 5;
     private Bitmap bitmap;
-    private GestureDetectorCompat gestureDetector;
     private Stroke selectedPath = null;
-    boolean isDraw = true;
-    private Canvas sCanvas;
     private boolean isMove = false;
     private boolean isMoving = false;
     private boolean isSelecting = false;
     private boolean isSelect = false;
     private Path selectionAreaPath;
     private Paint dashedRectanglePaint;
-    private RectF expandedBounds = new RectF();
-
-    SharedPreferences settings =
-            getContext().getSharedPreferences("PAINTVIEW", Context.MODE_PRIVATE);
 
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -87,7 +72,6 @@ public class PaintView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        sCanvas = canvas;
         canvas.save();
         canvas.drawColor(Color.WHITE);
         bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
@@ -104,58 +88,12 @@ public class PaintView extends View {
         canvas.restore();
     }
 
-    //    private SelectedPath findPathAtPoints(float x, float y) {
-    //        if (!paths.isEmpty()) {
-    //
-    //            for (int i = 0; i < paths.size(); i++) {
-    //                Stroke stroke = paths.get(i);
-    //                Path p = stroke.path;
-    //                if (selectedPathContainPoints(p, x, y)) {
-    //                    return new SelectedPath(stroke, i);
-    //                }
-    //            }
-    //        }
-    //        return null;
-    //    }
-    //
-    //    private boolean selectedPathContainPoints(Path path, float x, float y) {
-    //        Region r = new Region();
-    //        RectF bounds = new RectF();
-    //        path.computeBounds(bounds, true);
-    //        float touchThreshold = 50.0f;
-    //        bounds.inset(-touchThreshold, -touchThreshold);
-    //        r.setPath(
-    //                path,
-    //                new Region(
-    //                        (int) bounds.left,
-    //                        (int) bounds.top,
-    //                        (int) bounds.right,
-    //                        (int) bounds.bottom));
-    //        return r.contains((int) x, (int) y);
-    //    }
-
-    //    private void highlightSelectedPath(MotionEvent event) {
-    //        if (!isDraw) {
-    //            SelectedPath selected = findPathAtPoints(event.getX(0), event.getY(0));
-    //            if (selected != null) {
-    //                selectedPath = selected.getStroke();
-    //                if (selectedPathContainPoints(selectedPath.path, event.getX(0),
-    // event.getY(0))) {
-    //                    isMove = true;
-    //                    invalidate();
-    //                } else {
-    //                    isMove = false;
-    //                }
-    //            }
-    //        }
-    //    }
-
     public void drawSelectedPathHighlight(Canvas canvas) {
         dashedRectanglePaint = new Paint();
         dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
         dashedRectanglePaint.setStyle(Paint.Style.STROKE);
         dashedRectanglePaint.setStrokeWidth(2);
-        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
+        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[]{10, 5}, 0));
 
         if (selectedPath != null) {
             Region r = new Region();
@@ -193,91 +131,6 @@ public class PaintView extends View {
         }
     }
 
-    //    int changedColor;
-    //    RangeSlider changeStroke, resizePath;
-    //    float changeStrokeWidth;
-    //
-    //    private void showPathOptionsDialog(Stroke stroke) {
-    //        ModifyStrokeBinding strokeBinding =
-    //                ModifyStrokeBinding.inflate(LayoutInflater.from(getContext()));
-    //        changedColor = stroke.color;
-    //        changeStrokeWidth = stroke.strokeWidth;
-    //        // SelectedDrawing selectedDraw = strokeBinding.selectedDraw;
-    //        // selectedDraw.setSelectedPath(path.getStroke());
-    //        if (selectedPath != null) {
-    //            changeStroke = strokeBinding.changeSize;
-    //            resizePath = strokeBinding.resize;
-    //            changeStroke.setValueFrom(0.0f);
-    //            changeStroke.setValueTo(100.0f);
-    //            changeStroke.setValues(changeStrokeWidth);
-    //            changeStroke.addOnChangeListener(
-    //                    new RangeSlider.OnChangeListener() {
-    //                        @Override
-    //                        public void onValueChange(
-    //                                RangeSlider slider, float value, boolean userValue) {
-    //                            changeStrokeWidth = value;
-    //                        }
-    //                    });
-    //            strokeBinding.changeColor.setBackgroundColor(changedColor);
-    //            strokeBinding.changeColor.setOnClickListener(
-    //                    v -> {
-    //                        AmbilWarnaDialog colorDailog =
-    //                                new AmbilWarnaDialog(
-    //                                        getContext(),
-    //                                        changedColor,
-    //                                        new AmbilWarnaDialog.OnAmbilWarnaListener() {
-    //                                            @Override
-    //                                            public void onOk(AmbilWarnaDialog dialog, int
-    // color) {
-    //                                                changedColor = color;
-    //                                                strokeBinding.changeColor.setBackgroundColor(
-    //                                                        changedColor);
-    //                                            }
-    //
-    //                                            @Override
-    //                                            public void onCancel(AmbilWarnaDialog dialog) {
-    //                                                return;
-    //                                            }
-    //                                        });
-    //                        colorDailog.show();
-    //                    });
-    //            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-    //            builder.setView(strokeBinding.getRoot());
-    //            builder.setCancelable(false)
-    //                    .setPositiveButton(
-    //                            "Done",
-    //                            new DialogInterface.OnClickListener() {
-    //                                public void onClick(DialogInterface dialog, int id) {
-    //                                    stroke.color = changedColor;
-    //                                    stroke.strokeWidth = changeStrokeWidth;
-    //                                    paths.set(stroke.position, stroke);
-    //                                    paths.set(stroke.position, stroke);
-    //                                    invalidate();
-    //                                }
-    //                            })
-    //                    .setNegativeButton(
-    //                            "Cancel",
-    //                            new DialogInterface.OnClickListener() {
-    //                                public void onClick(DialogInterface dialog, int id) {
-    //                                    dialog.dismiss();
-    //                                }
-    //                            })
-    //                    .setNeutralButton(
-    //                            "Delete",
-    //                            new DialogInterface.OnClickListener() {
-    //                                @Override
-    //                                public void onClick(DialogInterface dialog, int id) {
-    //                                    paths.remove(stroke.position);
-    //                                    selectedPath = null;
-    //                                    invalidate();
-    //                                }
-    //                            });
-    //
-    //            AlertDialog dialog = builder.create();
-    //            dialog.show();
-    //        }
-    //    }
-
     public void setStrokeWidth(float strokeWidth) {
 
         if (selectedPath != null) {
@@ -291,10 +144,7 @@ public class PaintView extends View {
     }
 
     public boolean isDrawPath() {
-        if (isDraw && !isSelect) {
-            return true;
-        }
-        return false;
+        return isDraw && !isSelect;
     }
 
     public void setStrokeColor(int strokeColor) {
@@ -392,6 +242,7 @@ public class PaintView extends View {
             float offsetX = x - expandedBounds.centerX();
             float offsetY = y - expandedBounds.centerY();
             Matrix translateMatrix = new Matrix();
+
             translateMatrix.setTranslate(offsetX, offsetY);
             selectedPath.path.transform(translateMatrix);
             expandedBounds.offset(offsetX, offsetY);
@@ -540,27 +391,26 @@ public class PaintView extends View {
 
     class CanvasGestureDetector extends GestureDetector.SimpleOnGestureListener {
         @Override
-        public void onLongPress(MotionEvent event) {
+        public void onLongPress(@NonNull MotionEvent event) {
             if (!isDraw) {
                 if (selectedPath != null) {
+                    isMoving = false;
                     int p = selectedPath.position;
                     if (p >= 0 && p < paths.size()) {
-                        // showPathOptionsDialog(selectedPath);
                         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                         builder.setTitle("Delete");
                         builder.setMessage("Do You want to delete selected Path?");
+                        builder.setCancelable(false);
                         builder.setPositiveButton(
                                 "Delete",
-                                new DialogInterface.OnClickListener() {
-
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int id) {
-                                        paths.remove(p);
-                                        selectedPath = null;
-                                        invalidate();
-                                    }
+                                (dialog, id) -> {
+                                    paths.remove(p);
+                                    selectedPath = null;
+                                    invalidate();
                                 });
-                        builder.setNegativeButton("Cancel", null);
+                        builder.setNegativeButton(
+                                "Cancel",
+                                (dialog, id) -> dialog.dismiss());
                         AlertDialog dialog = builder.create();
                         dialog.show();
                     }

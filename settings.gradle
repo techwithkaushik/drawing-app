@@ -14,6 +14,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Drawing Paint"
+rootProject.name = "Drawing App"
 
 include(":app")

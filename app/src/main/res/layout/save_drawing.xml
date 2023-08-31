@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     android:orientation="horizontal">
+
+    <com.google.android.material.textfield.TextInputLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         app:suffixText="png"
+         android:layout_marginEnd="10dp"
+         app:placeholderText="Drawing Name"
+         android:hint="Entre Drawing Name"
+         android:layout_marginTop="10dp"
+         android:layout_marginStart="30dp"
+         android:layout_weight="1"
+         android:id="@+id/fileNameLayout">
+
+        <com.google.android.material.textfield.TextInputEditText
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             android:id="@+id/fileName"
+             android:text="drawingapp" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <androidx.appcompat.widget.AppCompatSpinner
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:layout_weight="1.4"
+         android:layout_gravity="center"
+         android:id="@+id/suffixSpinner" />
+
+</LinearLayout>
