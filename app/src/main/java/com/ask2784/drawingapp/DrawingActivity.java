@@ -33,6 +33,9 @@ public class DrawingActivity extends AppCompatActivity {
     private PaintView paintView;
     private SharedPreferences settings;
 
+    SharedPreferences.Editor editor;
+    RangeSlider strokeSize;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,11 +45,19 @@ public class DrawingActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
-        settings = getSharedPreferences("PAINTVIEW", MODE_PRIVATE);
-        binding.draw.setOnClickListener(v -> paintView.startDrawing());
 
+        settings = getSharedPreferences("PAINTVIEW", MODE_PRIVATE);
+        editor = settings.edit();
         paintView = binding.drawLayout;
-        RangeSlider strokeSize = binding.changeSize;
+        strokeSize = binding.changeSize;
+        strokeSize.setValueFrom(0.5f);
+        strokeSize.setValueTo(50.0f);
+        strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
+        binding.draw.setOnClickListener(
+                v -> {
+                    paintView.startDrawing();
+                    strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
+                });
 
         binding.undo.setOnClickListener(v -> paintView.undo());
 
@@ -54,7 +65,7 @@ public class DrawingActivity extends AppCompatActivity {
 
         binding.clearDrawing.setOnClickListener(v -> paintView.clear());
 
-        binding.selectPath.setOnClickListener(v -> paintView.startSelect());
+        binding.selectPath.setOnClickListener(v -> paintView.startSelect(strokeSize));
         binding.saveImage.setOnClickListener(
                 v -> {
                     SaveDrawingBinding saveBinding =
@@ -100,7 +111,8 @@ public class DrawingActivity extends AppCompatActivity {
                                                             saveBinding
                                                                     .fileName
                                                                     .getText()
-                                                                    .toString();
+                                                                    .toString()
+                                                                    .trim();
                                                     String suffix =
                                                             saveBinding
                                                                     .fileNameLayout
@@ -169,7 +181,6 @@ public class DrawingActivity extends AppCompatActivity {
                     dialog.show();
                 });
 
-        SharedPreferences.Editor editor = settings.edit();
         Drawable drawable = binding.draw.getDrawable();
         drawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
         binding.draw.setOnLongClickListener(
@@ -178,9 +189,6 @@ public class DrawingActivity extends AppCompatActivity {
                     return true;
                 });
 
-        strokeSize.setValueFrom(0.f);
-        strokeSize.setValueTo(50.0f);
-        strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
         strokeSize.addOnChangeListener(
                 (slider, value, userValue) -> {
                     if (paintView.isDrawPath()) {
@@ -202,7 +210,7 @@ public class DrawingActivity extends AppCompatActivity {
                             public void onOk(AmbilWarnaDialog dialog, int color) {
                                 if (paintView.isDrawPath()) {
                                     editor.putInt("PAINT_COLOR", color);
-                                    editor.commit();
+                                    editor.apply();
                                     drawable.setTint(color);
                                 }
                                 paintView.setStrokeColor(color);

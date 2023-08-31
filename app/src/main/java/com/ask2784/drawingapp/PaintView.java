@@ -21,6 +21,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.GestureDetectorCompat;
 
+import com.google.android.material.slider.RangeSlider;
 import java.util.ArrayList;
 
 public class PaintView extends View {
@@ -93,7 +94,7 @@ public class PaintView extends View {
         dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
         dashedRectanglePaint.setStyle(Paint.Style.STROKE);
         dashedRectanglePaint.setStrokeWidth(2);
-        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[]{10, 5}, 0));
+        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
 
         if (selectedPath != null) {
             Region r = new Region();
@@ -122,12 +123,15 @@ public class PaintView extends View {
         }
     }
 
-    public void startSelect() {
+    private RangeSlider slider;
+
+    public void startSelect(RangeSlider slider) {
         if (!isSelect) {
             isSelect = true;
             isDraw = false;
             selectedPath = null;
             isMove = false;
+            this.slider = slider;
         }
     }
 
@@ -342,6 +346,7 @@ public class PaintView extends View {
             if (isPathIntersectingArea(stroke, selectionArea)) {
                 stroke.position = i;
                 selectedPath = stroke;
+                slider.setValues(selectedPath.strokeWidth);
             }
         }
     }
@@ -408,9 +413,7 @@ public class PaintView extends View {
                                     selectedPath = null;
                                     invalidate();
                                 });
-                        builder.setNegativeButton(
-                                "Cancel",
-                                (dialog, id) -> dialog.dismiss());
+                        builder.setNegativeButton("Cancel", (dialog, id) -> dialog.dismiss());
                         AlertDialog dialog = builder.create();
                         dialog.show();
                     }
