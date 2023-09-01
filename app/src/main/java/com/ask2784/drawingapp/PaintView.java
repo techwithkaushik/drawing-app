@@ -135,6 +135,10 @@ public class PaintView extends View {
         }
     }
 
+    public Stroke getSelectedPath() {
+        return selectedPath;
+    }
+
     public void setStrokeWidth(float strokeWidth) {
 
         if (selectedPath != null) {
@@ -148,7 +152,7 @@ public class PaintView extends View {
     }
 
     public boolean isDrawPath() {
-        return isDraw && !isSelect;
+        return isDraw;
     }
 
     public void setStrokeColor(int strokeColor) {

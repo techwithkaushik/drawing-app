@@ -185,6 +185,7 @@ public class DrawingActivity extends AppCompatActivity {
         drawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
         binding.draw.setOnLongClickListener(
                 v -> {
+                if (paintView.getSelectedPath() != null || paintView.isDrawPath())
                     changeColorOnLongClick(editor, drawable);
                     return true;
                 });
@@ -200,7 +201,6 @@ public class DrawingActivity extends AppCompatActivity {
     }
 
     private void changeColorOnLongClick(SharedPreferences.Editor editor, Drawable drawable) {
-
         AmbilWarnaDialog colorDailog =
                 new AmbilWarnaDialog(
                         this,
@@ -211,7 +211,7 @@ public class DrawingActivity extends AppCompatActivity {
                                 if (paintView.isDrawPath()) {
                                     editor.putInt("PAINT_COLOR", color);
                                     editor.apply();
-                                    drawable.setTint(color);
+                                    drawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
                                 }
                                 paintView.setStrokeColor(color);
                             }
