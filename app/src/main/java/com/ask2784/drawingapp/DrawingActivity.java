@@ -1,6 +1,7 @@
 package com.ask2784.drawingapp;
 
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -18,10 +19,14 @@ import androidx.annotation.MainThread;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import com.ask2784.drawingapp.databinding.ActivityDrawingBinding;
 import com.ask2784.drawingapp.databinding.SaveDrawingBinding;
 import com.google.android.material.slider.RangeSlider;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 import java.util.ArrayList;
@@ -32,7 +37,7 @@ public class DrawingActivity extends AppCompatActivity {
     private ActivityDrawingBinding binding;
     private PaintView paintView;
     private SharedPreferences settings;
-
+    String suffix = "", fileName = "";
     SharedPreferences.Editor editor;
     RangeSlider strokeSize;
 
@@ -74,7 +79,10 @@ public class DrawingActivity extends AppCompatActivity {
                     builder.setTitle("Save Drawing")
                             .setView(saveBinding.getRoot())
                             .setPositiveButton("Save", null)
-                            .setNegativeButton("Cancel", null);
+                            .setNegativeButton("Cancel", null)
+                            .setNeutralButtonIcon(
+                                    ContextCompat.getDrawable(this, R.drawable.ic_share))
+                            .setNeutralButton("Share", null);
                     AlertDialog dialog = builder.create();
                     dialog.setOnShowListener(
                             i -> {
@@ -89,7 +97,6 @@ public class DrawingActivity extends AppCompatActivity {
                                 saveBinding.suffixSpinner.setAdapter(suffixAdapter);
                                 saveBinding.suffixSpinner.setOnItemSelectedListener(
                                         new AdapterView.OnItemSelectedListener() {
-
                                             @Override
                                             public void onItemSelected(
                                                     AdapterView<?> parent,
@@ -98,28 +105,24 @@ public class DrawingActivity extends AppCompatActivity {
                                                     long id) {
                                                 saveBinding.fileNameLayout.setSuffixText(
                                                         parent.getSelectedItem().toString());
+                                                suffix = parent.getSelectedItem().toString();
                                             }
 
                                             @Override
                                             public void onNothingSelected(AdapterView<?> arg0) {}
                                         });
+                                Bitmap bitmap = paintView.exportImage();
+                                Bitmap.CompressFormat imageFormat =
+                                        suffix == "png"
+                                                ? Bitmap.CompressFormat.PNG
+                                                : Bitmap.CompressFormat.JPEG;
 
+                                fileName = saveBinding.fileName.getText().toString().trim();
                                 dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                                         .setOnClickListener(
                                                 v2 -> {
-                                                    String fileName =
-                                                            saveBinding
-                                                                    .fileName
-                                                                    .getText()
-                                                                    .toString()
-                                                                    .trim();
-                                                    String suffix =
-                                                            saveBinding
-                                                                    .fileNameLayout
-                                                                    .getSuffixText()
-                                                                    .toString();
                                                     if (fileName != null && fileName.length() > 0) {
-                                                        Bitmap btmap = paintView.exportImage();
+
                                                         OutputStream imgOut;
                                                         ContentValues cv = new ContentValues();
                                                         cv.put(
@@ -145,14 +148,8 @@ public class DrawingActivity extends AppCompatActivity {
                                                             imgOut =
                                                                     getContentResolver()
                                                                             .openOutputStream(uri);
-                                                            Bitmap.CompressFormat imageFormat =
-                                                                    suffix == "png"
-                                                                            ? Bitmap.CompressFormat
-                                                                                    .PNG
-                                                                            : Bitmap.CompressFormat
-                                                                                    .JPEG;
 
-                                                            btmap.compress(
+                                                            bitmap.compress(
                                                                     imageFormat, 100, imgOut);
                                                             assert imgOut != null;
                                                             imgOut.close();
@@ -177,16 +174,58 @@ public class DrawingActivity extends AppCompatActivity {
                                                                 .show();
                                                     }
                                                 });
+                                dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                                        .setOnClickListener(
+                                                vs -> {
+                                                    fileName =
+                                                            saveBinding
+                                                                    .fileName
+                                                                    .getText()
+                                                                    .toString()
+                                                                    .trim();
+                                                    File imageFolder =
+                                                            new File(getCacheDir(), "images");
+                                                    Uri uri = null;
+                                                    try {
+                                                        imageFolder.mkdir();
+                                                        File file =
+                                                                new File(
+                                                                        imageFolder,
+                                                                        fileName + "." + suffix);
+                                                        FileOutputStream outup =
+                                                                new FileOutputStream(file);
+                                                        bitmap.compress(imageFormat, 100, outup);
+                                                        outup.flush();
+                                                        outup.close();
+                                                        uri =
+                                                                FileProvider.getUriForFile(
+                                                                        this,
+                                                                        "com.ask2784.drawingapp.fileprovider",
+                                                                        file);
+                                                        Intent intent =
+                                                                new Intent(Intent.ACTION_SEND);
+                                                        intent.putExtra(Intent.EXTRA_STREAM, uri);
+                                                        intent.setType(
+                                                                suffix == "png"
+                                                                        ? "image/png"
+                                                                        : "image/jpeg");
+                                                        startActivity(
+                                                                Intent.createChooser(
+                                                                        intent, "Share image"));
+                                                    } catch (Exception err) {
+                                                        err.printStackTrace();
+                                                    }
+                                                });
                             });
                     dialog.show();
                 });
 
-        Drawable drawable = binding.draw.getDrawable();
-        drawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
+        Drawable colorDrawable = binding.setColor.getDrawable();
+        colorDrawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
         binding.draw.setOnLongClickListener(
                 v -> {
-                if (paintView.getSelectedPath() != null || paintView.isDrawPath())
-                    changeColorOnLongClick(editor, drawable);
+                    if (paintView.getSelectedPath() != null || paintView.isDrawPath())
+                        changeDrawMethodOnLongClick();
                     return true;
                 });
 
@@ -198,29 +237,83 @@ public class DrawingActivity extends AppCompatActivity {
                     }
                     paintView.setStrokeWidth(value);
                 });
+        binding.setColor.setOnClickListener(
+                v -> {
+                    AmbilWarnaDialog colorDailog =
+                            new AmbilWarnaDialog(
+                                    this,
+                                    settings.getInt("PAINT_COLOR", Color.GREEN),
+                                    new AmbilWarnaDialog.OnAmbilWarnaListener() {
+                                        @Override
+                                        public void onOk(AmbilWarnaDialog dialog, int color) {
+                                            if (paintView.isDrawPath()) {
+                                                editor.putInt("PAINT_COLOR", color);
+                                                editor.apply();
+                                                colorDrawable.setTint(
+                                                        settings.getInt(
+                                                                "PAINT_COLOR", Color.GREEN));
+                                            }
+                                            paintView.setStrokeColor(color);
+                                        }
+
+                                        @Override
+                                        public void onCancel(AmbilWarnaDialog dialog) {}
+                                    });
+                    colorDailog.show();
+                });
+
+        changeDrawMethod();
     }
 
-    private void changeColorOnLongClick(SharedPreferences.Editor editor, Drawable drawable) {
-        AmbilWarnaDialog colorDailog =
-                new AmbilWarnaDialog(
-                        this,
-                        settings.getInt("PAINT_COLOR", Color.GREEN),
-                        new AmbilWarnaDialog.OnAmbilWarnaListener() {
-                            @Override
-                            public void onOk(AmbilWarnaDialog dialog, int color) {
-                                if (paintView.isDrawPath()) {
-                                    editor.putInt("PAINT_COLOR", color);
-                                    editor.apply();
-                                    drawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
-                                }
-                                paintView.setStrokeColor(color);
-                            }
-
-                            @Override
-                            public void onCancel(AmbilWarnaDialog dialog) {}
-                        });
-        colorDailog.show();
+    private void changeDrawMethodOnLongClick() {
+        isExtra = !isExtra ? true : false;
+        binding.extraDraw.setVisibility(isExtra ? View.VISIBLE : View.GONE);
     }
+
+    Drawable drawable;
+
+    private void changeDrawMethod() {
+
+        binding.drawBrush.setOnClickListener(
+                v -> {
+                    drawable = binding.drawBrush.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.BRUSH);
+                });
+        binding.drawPencil.setOnClickListener(
+                v -> {
+                    drawable = binding.drawPencil.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.LINE);
+                });
+        binding.drawRectangle.setOnClickListener(
+                v -> {
+                    drawable = binding.drawRectangle.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.RECTANGLE);
+                });
+        binding.drawSquare.setOnClickListener(
+                v -> {
+                    drawable = binding.drawSquare.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.SQUARE);
+                });
+        binding.drawCircle.setOnClickListener(
+                v -> {
+                    drawable = binding.drawCircle.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.CIRCLE);
+                });
+        binding.drawTriangle.setOnClickListener(
+                v -> {
+                    drawable = binding.drawTriangle.getDrawable();
+                    binding.draw.setImageDrawable(drawable);
+                    paintView.setDrawMethod(DrawMethods.TRIANGLE);
+                });
+        isExtra = false;
+    }
+
+    boolean isExtra = false;
 
     @Override
     @MainThread

@@ -1,35 +1,35 @@
 {
   "allFiles": [
     {
-      "file": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/DrawingActivity.java",
+      "file": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/PaintView.java",
       "selection": {
         "end": {
-          "column": 81,
+          "column": 37,
           "index": -1,
-          "line": 187
+          "line": 245
         },
         "start": {
-          "column": 81,
+          "column": 37,
           "index": -1,
-          "line": 187
+          "line": 245
         }
       }
     },
     {
-      "file": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/PaintView.java",
+      "file": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/DrawingActivity.java",
       "selection": {
         "end": {
-          "column": 26,
+          "column": 19,
           "index": -1,
-          "line": 138
+          "line": 64
         },
         "start": {
-          "column": 26,
+          "column": 19,
           "index": -1,
-          "line": 138
+          "line": 64
         }
       }
     }
   ],
-  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/DrawingActivity.java"
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/drawing-app/app/src/main/java/com/ask2784/drawingapp/PaintView.java"
 }

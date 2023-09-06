@@ -26,7 +26,7 @@ import java.util.ArrayList;
 
 public class PaintView extends View {
     private static final float TOLERANCE = 5;
-    private final ArrayList<Stroke> redoPaths = new ArrayList<>();
+    private ArrayList<Stroke> redoPaths = new ArrayList<>();
     private final ArrayList<Stroke> paths = new ArrayList<>();
     private final GestureDetectorCompat gestureDetector;
     private final RectF expandedBounds = new RectF();
@@ -46,6 +46,8 @@ public class PaintView extends View {
     private boolean isSelect = false;
     private Path selectionAreaPath;
     private Paint dashedRectanglePaint;
+    private DrawMethods method;
+    Canvas mCanvas;
 
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -56,7 +58,7 @@ public class PaintView extends View {
     }
 
     private void setupDraw() {
-
+        method = DrawMethods.BRUSH;
         currentStrokeWidth = settings.getFloat("STROKEWIDTH", 5.0f);
         currentColor = settings.getInt("PAINT_COLOR", Color.GREEN);
         dPaint = new Paint();
@@ -75,21 +77,29 @@ public class PaintView extends View {
         super.onDraw(canvas);
         canvas.save();
         canvas.drawColor(Color.WHITE);
+
+        drawSelectedPathHighlight(canvas);
+
         bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
-        Canvas mCanvas = new Canvas(bitmap);
+        mCanvas = new Canvas(bitmap);
         mCanvas.drawColor(Color.WHITE);
+
         for (Stroke st : paths) {
             dPaint.setColor(st.color);
             dPaint.setStrokeWidth(st.strokeWidth);
             canvas.drawPath(st.path, dPaint);
             mCanvas.drawPath(st.path, dPaint);
         }
-        if (isSelecting) canvas.drawRect(mX, mY, endX, endY, dashedRectanglePaint);
-        drawSelectedPathHighlight(canvas);
+
         canvas.restore();
     }
 
-    public void drawSelectedPathHighlight(Canvas canvas) {
+    public void setDrawMethod(DrawMethods method) {
+        this.method = method;
+    }
+
+    private void drawSelectedPathHighlight(Canvas canvas) {
+        if (isSelecting) canvas.drawRect(mX, mY, endX, endY, dashedRectanglePaint);
         dashedRectanglePaint = new Paint();
         dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
         dashedRectanglePaint.setStyle(Paint.Style.STROKE);
@@ -182,6 +192,12 @@ public class PaintView extends View {
 
     public void clear() {
         if (!paths.isEmpty()) {
+            if (!redoPaths.isEmpty()) {
+                redoPaths.clear();
+            }
+            for (int i = 0; i < paths.size(); i++) {
+                redoPaths.add(paths.get(i));
+            }
             paths.clear();
             selectedPath = null;
             invalidate();
@@ -200,23 +216,68 @@ public class PaintView extends View {
         Stroke st = new Stroke(currentColor, currentStrokeWidth, mPath);
         paths.add(st);
         mPath.reset();
-        mPath.moveTo(x, y);
         mX = x;
         mY = y;
+        mPath.moveTo(x, y);
     }
 
     private void moveDrawing(float x, float y) {
         float dx = Math.abs(x - mX);
         float dy = Math.abs(y - mY);
         if (dx >= TOLERANCE || dy >= TOLERANCE) {
-            mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2);
-            mX = x;
-            mY = y;
+            switch (method) {
+                case LINE:
+                    mX = x;
+                    mY = y;
+                    break;
+                case BRUSH:
+                    mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2);
+                    mX = x;
+                    mY = y;
+                    break;
+            }
         }
     }
 
-    private void endDrawing() {
-        mPath.lineTo(mX, mY);
+    private void endDrawing(float x, float y) {
+
+        switch (method) {
+            case LINE:
+                mPath.lineTo(mX, mY);
+                break;
+            case BRUSH:
+                mPath.lineTo(mX, mY);
+                break;
+            case RECTANGLE:
+                mPath.addRect(mX, mY, x, y, Path.Direction.CW);
+                break;
+            case SQUARE:
+                float dx = Math.abs(x - mX);
+                float dy = Math.abs(y - mY);
+                float sideLength = Math.min(dx, dy);
+                float left = Math.min(mX, x);
+                float top = Math.min(mY, y);
+                float right = left + sideLength;
+                float bottom = top + sideLength;
+                mPath.addRect(left, top, right, bottom, Path.Direction.CW);
+                break;
+            case CIRCLE:
+                float radius = (float) Math.sqrt(Math.pow(x - mX, 2) + Math.pow(y - mY, 2));
+                mPath.addCircle(mX, mY, radius, Path.Direction.CW);
+                break;
+            case TRIANGLE:
+                // Draw a triangle (you can customize the triangle logic)
+                float halfWidth = (mX - x) / 2;
+                Path trianglePath = new Path();
+                trianglePath.moveTo(mX, mY - halfWidth);
+                trianglePath.lineTo(x - halfWidth, y + halfWidth);
+                trianglePath.lineTo(x, y + y - halfWidth);
+                trianglePath.close();
+                // canvas.drawPath(trianglePath, dPaint);
+                // mCanvas.drawPath(trianglePath, dPaint);
+                mPath.addPath(trianglePath);
+                break;
+        }
     }
 
     private RectF getExpandedBounds(Stroke stroke) {
@@ -325,7 +386,7 @@ public class PaintView extends View {
                 break;
             case MotionEvent.ACTION_UP:
                 if (isDraw) {
-                    endDrawing();
+                    endDrawing(x, y);
                 }
                 if (isSelect) {
                     endSelectingPaths();
@@ -338,6 +399,7 @@ public class PaintView extends View {
             default:
                 return false;
         }
+
         gestureDetector.onTouchEvent(event);
         return true;
     }

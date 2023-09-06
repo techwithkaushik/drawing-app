@@ -1,104 +1,197 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<RelativeLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent">
 
     <com.ask2784.drawingapp.PaintView
-        android:id="@+id/drawLayout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentBottom="true" />
+         android:layout_height="match_parent"
+         android:layout_width="match_parent"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentRight="true"
+         android:layout_alignParentBottom="true"
+         android:layout_alignParentTop="true"
+         android:id="@+id/drawLayout" />
 
     <com.google.android.material.slider.RangeSlider
-        android:id="@+id/changeSize"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/ll1"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:visibility="visible" />
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:visibility="visible"
+         android:layout_marginEnd="20dp"
+         android:layout_above="@id/ll1"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentStart="true"
+         android:layout_marginStart="20dp"
+         android:id="@+id/changeSize" />
 
     <LinearLayout
-        android:id="@+id/ll1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        android:layout_marginBottom="10dp"
-        android:gravity="center_horizontal"
-        android:orientation="horizontal">
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:layout_marginBottom="10dp"
+         android:gravity="center_horizontal"
+         android:orientation="vertical"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentStart="true"
+         android:layout_alignParentBottom="true"
+         android:id="@+id/ll1">
 
-        <ImageButton
-            android:id="@+id/save_image"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_save"
-            android:text="save" />
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="10dp"
+             android:visibility="gone"
+             android:orientation="horizontal"
+             android:id="@+id/extra_draw">
 
-        <ImageButton
-            android:id="@+id/undo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_undo"
-            android:text="undo" />
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_circle"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:id="@+id/draw_circle"
+                 android:text="circle" />
 
-        <ImageButton
-            android:id="@+id/redo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_redo"
-            android:text="redo" />
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_triangle"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw_triangle"
+                 android:text="triangle" />
 
-        <ImageButton
-            android:id="@+id/clear_drawing"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_clear"
-            android:text="clear" />
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_square"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw_square"
+                 android:text="square" />
 
-        <ImageButton
-            android:id="@+id/select_path"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_select"
-            android:text="select" />
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_rectangle"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw_rectangle"
+                 android:text="rectangle" />
 
-        <ImageButton
-            android:id="@+id/draw"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:background="@drawable/btn_circle"
-            android:padding="8dp"
-            android:src="@drawable/ic_color"
-            android:text="draw" />
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_pencil"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw_pencil"
+                 android:text="pencil" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_brush"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw_brush"
+                 android:text="brush" />
+
+        </LinearLayout>
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginBottom="10dp"
+             android:orientation="horizontal">
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginEnd="2dp"
+                 android:src="@drawable/ic_save"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:id="@+id/save_image"
+                 android:text="save" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginEnd="2dp"
+                 android:src="@drawable/ic_undo"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/undo"
+                 android:layout_gravity="center"
+                 android:text="undo" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginEnd="2dp"
+                 android:src="@drawable/ic_redo"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/redo"
+                 android:text="redo" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginEnd="2dp"
+                 android:src="@drawable/ic_clear"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/clear_drawing"
+                 android:text="clear" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:layout_marginEnd="2dp"
+                 android:src="@drawable/ic_select"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/select_path"
+                 android:text="select" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_color"
+                 android:layout_marginEnd="2dp"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/set_color"
+                 android:text="color" />
+
+            <ImageButton
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:src="@drawable/ic_brush"
+                 android:background="@drawable/btn_circle"
+                 android:padding="8dp"
+                 android:layout_marginStart="2dp"
+                 android:id="@+id/draw"
+                 android:text="draw" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
