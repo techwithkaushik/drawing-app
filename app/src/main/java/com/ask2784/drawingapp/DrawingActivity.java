@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -62,6 +63,8 @@ public class DrawingActivity extends AppCompatActivity {
                 v -> {
                     paintView.startDrawing();
                     strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
+                    isExtra = false;
+                    binding.extraDraw.setVisibility(View.GONE);
                 });
 
         binding.undo.setOnClickListener(v -> paintView.undo());
@@ -273,44 +276,42 @@ public class DrawingActivity extends AppCompatActivity {
     Drawable drawable;
 
     private void changeDrawMethod() {
-
         binding.drawBrush.setOnClickListener(
                 v -> {
                     drawable = binding.drawBrush.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.BRUSH);
+                    paintView.setDrawMethod(ShapeType.BRUSH);
                 });
         binding.drawPencil.setOnClickListener(
                 v -> {
                     drawable = binding.drawPencil.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.LINE);
+                    paintView.setDrawMethod(ShapeType.LINE);
                 });
         binding.drawRectangle.setOnClickListener(
                 v -> {
                     drawable = binding.drawRectangle.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.RECTANGLE);
+                    paintView.setDrawMethod(ShapeType.RECTANGLE);
                 });
         binding.drawSquare.setOnClickListener(
                 v -> {
                     drawable = binding.drawSquare.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.SQUARE);
+                    paintView.setDrawMethod(ShapeType.SQUARE);
                 });
         binding.drawCircle.setOnClickListener(
                 v -> {
                     drawable = binding.drawCircle.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.CIRCLE);
+                    paintView.setDrawMethod(ShapeType.CIRCLE);
                 });
         binding.drawTriangle.setOnClickListener(
                 v -> {
                     drawable = binding.drawTriangle.getDrawable();
                     binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(DrawMethods.TRIANGLE);
+                    paintView.setDrawMethod(ShapeType.TRIANGLE);
                 });
-        isExtra = false;
     }
 
     boolean isExtra = false;
@@ -320,5 +321,14 @@ public class DrawingActivity extends AppCompatActivity {
     public void onBackPressed() {
         super.onBackPressed();
         this.binding = null;
+    }
+
+    @Override
+    public boolean onKeyDown(int arg0, KeyEvent arg1) {
+        if (isExtra) {
+            isExtra = false;
+            binding.extraDraw.setVisibility(isExtra ? View.VISIBLE : View.GONE);
+        }
+        return super.onKeyDown(arg0, arg1);
     }
 }

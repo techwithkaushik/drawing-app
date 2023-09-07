@@ -17,6 +17,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.view.GestureDetectorCompat;
@@ -30,10 +31,10 @@ public class PaintView extends View {
     private final ArrayList<Stroke> paths = new ArrayList<>();
     private final GestureDetectorCompat gestureDetector;
     private final RectF expandedBounds = new RectF();
-    boolean isDraw = true;
-    SharedPreferences settings =
+    private boolean isDraw = true;
+    private SharedPreferences settings =
             getContext().getSharedPreferences("PAINTVIEW", Context.MODE_PRIVATE);
-    private float mX, mY, endX, endY;
+    private float startX, startY, endX, endY;
     private Paint dPaint;
     private Path mPath;
     private int currentColor;
@@ -41,13 +42,15 @@ public class PaintView extends View {
     private Bitmap bitmap;
     private Stroke selectedPath = null;
     private boolean isMove = false;
+
     private boolean isMoving = false;
     private boolean isSelecting = false;
     private boolean isSelect = false;
     private Path selectionAreaPath;
     private Paint dashedRectanglePaint;
-    private DrawMethods method;
-    Canvas mCanvas;
+    private ShapeType shapeType;
+    private Canvas mCanvas;
+    private boolean isShapeDrawing = false;
 
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -58,7 +61,7 @@ public class PaintView extends View {
     }
 
     private void setupDraw() {
-        method = DrawMethods.BRUSH;
+        shapeType = ShapeType.BRUSH;
         currentStrokeWidth = settings.getFloat("STROKEWIDTH", 5.0f);
         currentColor = settings.getInt("PAINT_COLOR", Color.GREEN);
         dPaint = new Paint();
@@ -91,15 +94,72 @@ public class PaintView extends View {
             mCanvas.drawPath(st.path, dPaint);
         }
 
+        if (isShapeDrawing) {
+            switch (shapeType) {
+                case LINE:
+                    drawLine(canvas);
+                    break;
+                case RECTANGLE:
+                    drawRectangle(canvas);
+                    break;
+                case SQUARE:
+                    drawSquare(canvas);
+                    break;
+                case CIRCLE:
+                    drawCircle(canvas);
+                    break;
+                case TRIANGLE:
+                    drawTriangle(canvas);
+                    break;
+            }
+        }
+
         canvas.restore();
     }
 
-    public void setDrawMethod(DrawMethods method) {
-        this.method = method;
+    public void setDrawMethod(ShapeType shapeType) {
+        this.shapeType = shapeType;
+    }
+
+    private void drawLine(Canvas canvas) {
+        canvas.drawLine(startX, startY, endX, endY, dPaint);
+        invalidate();
+    }
+
+    private void drawRectangle(Canvas canvas) {
+        canvas.drawRect(startX, startY, endX, endY, dPaint);
+        invalidate();
+    }
+
+    private void drawSquare(Canvas canvas) {
+        float dx = Math.abs(endX - startX);
+        float dy = Math.abs(endY - startY);
+        float sideLength = Math.min(dx, dy);
+        float left = Math.min(startX, endX);
+        float top = Math.min(startY, endY);
+        float right = left + sideLength;
+        float bottom = top + sideLength;
+        canvas.drawRect(left, top, right, bottom, dPaint);
+        invalidate();
+    }
+
+    private void drawCircle(Canvas canvas) {
+        float radius = (float) Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+        canvas.drawCircle(endX, endY, radius, dPaint);
+        invalidate();
+    }
+
+    private void drawTriangle(Canvas canvas) {
+        Path p = new Path();
+        p.moveTo(startX, startY);
+        p.lineTo(endX, endY);
+        p.lineTo(startX + (startX - endX), endY);
+        p.close();
+        canvas.drawPath(p, dPaint);
     }
 
     private void drawSelectedPathHighlight(Canvas canvas) {
-        if (isSelecting) canvas.drawRect(mX, mY, endX, endY, dashedRectanglePaint);
+        if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
         dashedRectanglePaint = new Paint();
         dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
         dashedRectanglePaint.setStyle(Paint.Style.STROKE);
@@ -212,71 +272,83 @@ public class PaintView extends View {
         if (!redoPaths.isEmpty()) {
             redoPaths.clear();
         }
+        startX = x;
+        startY = y;
+        endX = x;
+        endY = y;
         mPath = new Path();
-        Stroke st = new Stroke(currentColor, currentStrokeWidth, mPath);
+        Stroke st = new Stroke(currentColor, currentStrokeWidth, mPath, shapeType);
         paths.add(st);
         mPath.reset();
-        mX = x;
-        mY = y;
         mPath.moveTo(x, y);
     }
 
     private void moveDrawing(float x, float y) {
-        float dx = Math.abs(x - mX);
-        float dy = Math.abs(y - mY);
+        float dx = Math.abs(x - startX);
+        float dy = Math.abs(y - startY);
         if (dx >= TOLERANCE || dy >= TOLERANCE) {
-            switch (method) {
-                case LINE:
-                    mX = x;
-                    mY = y;
-                    break;
-                case BRUSH:
-                    mPath.quadTo(mX, mY, (x + mX) / 2, (y + mY) / 2);
-                    mX = x;
-                    mY = y;
-                    break;
+            if (shapeType == ShapeType.BRUSH) {
+                mPath.quadTo(endX, endY, (x + endX) / 2, (y + endY) / 2);
+                endX = x;
+                endY = y;
+            } else {
+                isShapeDrawing = true;
+                switch (shapeType) {
+                    case LINE:
+                    case RECTANGLE:
+                    case SQUARE:
+                    case CIRCLE:
+                    case TRIANGLE:
+                        endX = x;
+                        endY = y;
+                        break;
+                }
             }
         }
     }
 
     private void endDrawing(float x, float y) {
-
-        switch (method) {
-            case LINE:
-                mPath.lineTo(mX, mY);
-                break;
-            case BRUSH:
-                mPath.lineTo(mX, mY);
-                break;
-            case RECTANGLE:
-                mPath.addRect(mX, mY, x, y, Path.Direction.CW);
-                break;
-            case SQUARE:
-                float dx = Math.abs(x - mX);
-                float dy = Math.abs(y - mY);
-                float sideLength = Math.min(dx, dy);
-                float left = Math.min(mX, x);
-                float top = Math.min(mY, y);
-                float right = left + sideLength;
-                float bottom = top + sideLength;
-                mPath.addRect(left, top, right, bottom, Path.Direction.CW);
-                break;
-            case CIRCLE:
-                float radius = (float) Math.sqrt(Math.pow(x - mX, 2) + Math.pow(y - mY, 2));
-                mPath.addCircle(mX, mY, radius, Path.Direction.CW);
-                break;
-            case TRIANGLE:
-                // Draw a triangle (you can customize the triangle logic)
-                float halfWidth = (mX - x) / 2;
-                Path trianglePath = new Path();
-                trianglePath.moveTo(mX, mY - halfWidth);
-                trianglePath.lineTo(x - halfWidth, y + halfWidth);
-                trianglePath.lineTo(x, y + y - halfWidth);
-                trianglePath.close();
-                // canvas.drawPath(trianglePath, dPaint);
-                // mCanvas.drawPath(trianglePath, dPaint);
-                mPath.addPath(trianglePath);
-                break;
+        if (shapeType == ShapeType.BRUSH) {
+            mPath.lineTo(endX, endY);
+        } else {
+            switch (shapeType) {
+                case LINE:
+                    mPath.lineTo(endX, endY);
+                    break;
+                case BRUSH:
+                    break;
+                case RECTANGLE:
+                    mPath.addRect(startX, startY, x, y, Path.Direction.CW);
+                    mPath.addRect(x, y, startX, startY, Path.Direction.CW);
+                    mPath.addRect(x, startY, startX, y, Path.Direction.CW);
+                    mPath.addRect(startX, y, x, startY, Path.Direction.CCW);
+                    break;
+                case SQUARE:
+                    float dx = Math.abs(x - startX);
+                    float dy = Math.abs(y - startY);
+                    float sideLength = Math.min(dx, dy);
+                    float left = Math.min(startX, x);
+                    float top = Math.min(startY, y);
+                    float right = left + sideLength;
+                    float bottom = top + sideLength;
+                    mPath.addRect(left, top, right, bottom, Path.Direction.CW);
+                    break;
+                case CIRCLE:
+                    float radius =
+                            (float) Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                    mPath.addCircle(endX, endY, radius, Path.Direction.CW);
+                    break;
+                case TRIANGLE:
+                    // Draw a triangle (you can customize the triangle logic)
+                    Path trianglePath = new Path();
+                    trianglePath.moveTo(startX, startY);
+                    trianglePath.lineTo(endX, endY);
+                    trianglePath.lineTo(startX + (startX - endX), endY);
+                    trianglePath.close();
+                    mPath.addPath(trianglePath);
+                    break;
+            }
+            isShapeDrawing = false;
         }
     }
 
@@ -327,8 +399,8 @@ public class PaintView extends View {
     private void startSelectingPaths(float x, float y) {
         if (!isSelecting) {
             isSelecting = true;
-            mX = x;
-            mY = y;
+            startX = x;
+            startY = y;
             endX = x;
             endY = y;
             selectionAreaPath = new Path();

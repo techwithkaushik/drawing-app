@@ -1,6 +1,6 @@
 package com.ask2784.drawingapp;
 
-public enum DrawMethods {
+public enum ShapeType {
     BRUSH,
     LINE,
     RECTANGLE,

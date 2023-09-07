@@ -14,10 +14,12 @@ public class Stroke {
     // represent the path drawn
     public Path path;
     public int position;
+    public ShapeType shapeType;
 
-    public Stroke(int color, float strokeWidth, Path path) {
+    public Stroke(int color, float strokeWidth, Path path, ShapeType shapeType) {
         this.color = color;
         this.strokeWidth = strokeWidth;
         this.path = path;
+        this.shapeType = shapeType;
     }
 }

@@ -2,19 +2,17 @@
 
 ## ✨ Features
 - [x] Scribble.
-- [ ] Draw Shapes (Line, Polygon, Ellipse and Rectangle).
+- [x] Draw Shapes (Line, Triangle, Square, Circle and Rectangle).
 - [ ] Eraser.
-- [x] Undo and Redo
-- [x] Export as Image
+- [x] Undo and Redo.
+- [x] Export as Image.
 - [ ] Canvas Zoom/Scroll.
-- [ ] Perfect circle option and Polygon rotation.
 
 
 ## 📸 ScreenShots
 
 
 ## 🤓 Author(s)
-
+- [Arvind Kaushik](https://github.com/ask9027)
 
 ## 🔖 LICENCE
-
