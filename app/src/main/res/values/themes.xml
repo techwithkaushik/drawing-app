@@ -1,13 +1,22 @@
 <resources>
     <!-- Base application theme. -->
-    <style name="Base.AppTheme" parent="Theme.Material3.Light.NoActionBar">
+    <style
+        name="Base.AppTheme"
+        parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="AppTheme" parent="Base.AppTheme" />
+    <style
+        name="AppTheme"
+        parent="Base.AppTheme" />
 
-    <style name="roundedCornersImageView" parent="">
+    <style
+        name="roundedCornersImageView"
+        parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">8dp</item>
     </style>

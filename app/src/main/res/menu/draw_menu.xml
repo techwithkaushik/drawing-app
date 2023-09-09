@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/undo"
+        android:title="Undo"
+        android:icon="@drawable/ic_undo"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/redo"
+        android:title="Redo"
+        android:icon="@drawable/ic_redo"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/clear_drawing"
+        android:title="Clear"
+        android:icon="@drawable/ic_clear"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/export_image"
+        android:title="Export Image" />
+    <item
+        android:id="@+id/save_project"
+        android:title="Save Project" />
+    <item
+        android:id="@+id/load_project"
+        android:title="Load Project" />
+
+</menu>
