@@ -11,6 +11,9 @@
 
 ## 📸 ScreenShots
 
+## Contributing
+Since this project is opensource. if anyone want to contribute in this project please contribute.
+
 
 ## 🤓 Author(s)
 - [Arvind Kaushik](https://github.com/ask9027)
