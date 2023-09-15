@@ -43,7 +43,7 @@ public class PaintView extends View {
     private final RectF expandedBounds = new RectF();
     private boolean isDraw = true;
     private SharedPreferences settings =
-            getContext().getSharedPreferences("PAINTVIEW", Context.MODE_PRIVATE);
+            getContext().getSharedPreferences("paintView", Context.MODE_PRIVATE);
     private float startX, startY, endX, endY;
     private Paint dPaint;
     // private SerializePath mPath, selectionAreaPath;
@@ -73,8 +73,8 @@ public class PaintView extends View {
 
     private void setupDraw() {
         shapeType = ShapeType.BRUSH;
-        currentStrokeWidth = settings.getFloat("STROKEWIDTH", 5.0f);
-        currentColor = settings.getInt("PAINT_COLOR", Color.GREEN);
+        currentStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
+        currentColor = settings.getInt("paintColor", Color.GREEN);
         dPaint = new Paint();
         dPaint.setColor(currentColor);
         dPaint.setAntiAlias(true);

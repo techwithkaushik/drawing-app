@@ -26,7 +26,9 @@ import com.ask2784.drawingapp.databinding.ActivityDrawingBinding;
 import com.ask2784.drawingapp.databinding.SaveDrawingBinding;
 import com.google.android.material.slider.RangeSlider;
 
-import yuku.ambilwarna.AmbilWarnaDialog;
+import com.skydoves.colorpickerview.ColorEnvelope;
+import com.skydoves.colorpickerview.ColorPickerDialog;
+import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,7 +38,7 @@ public class DrawingActivity extends AppCompatActivity {
     private ActivityDrawingBinding binding;
     private PaintView paintView;
     private SharedPreferences settings;
-    String suffix = "", fileName = "mydrawing";
+    String suffix = "", fileName = "MyDrawing";
     SharedPreferences.Editor editor;
     RangeSlider strokeSize;
 
@@ -50,17 +52,17 @@ public class DrawingActivity extends AppCompatActivity {
             getSupportActionBar().setTitle(fileName);
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
-        settings = getSharedPreferences("PAINTVIEW", MODE_PRIVATE);
+        settings = getSharedPreferences("paintView", MODE_PRIVATE);
         editor = settings.edit();
         paintView = binding.drawLayout;
         strokeSize = binding.changeSize;
         strokeSize.setValueFrom(0.5f);
         strokeSize.setValueTo(50.0f);
-        strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
+        strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
         binding.draw.setOnClickListener(
                 v -> {
                     paintView.startDrawing();
-                    strokeSize.setValues(settings.getFloat("STROKEWIDTH", 5.0f));
+                    strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
                     isExtra = false;
                     binding.extraDraw.setVisibility(View.GONE);
                 });
@@ -68,7 +70,7 @@ public class DrawingActivity extends AppCompatActivity {
         binding.selectPath.setOnClickListener(v -> paintView.startSelect(strokeSize));
 
         Drawable colorDrawable = binding.setColor.getDrawable();
-        colorDrawable.setTint(settings.getInt("PAINT_COLOR", Color.GREEN));
+        colorDrawable.setTint(settings.getInt("paintColor", Color.GREEN));
         binding.draw.setOnLongClickListener(
                 v -> {
                     if (paintView.getSelectedDrawing() != null || paintView.isDrawPath())
@@ -79,36 +81,38 @@ public class DrawingActivity extends AppCompatActivity {
         strokeSize.addOnChangeListener(
                 (slider, value, userValue) -> {
                     if (paintView.isDrawPath()) {
-                        editor.putFloat("STROKEWIDTH", value);
+                        editor.putFloat("strokeWidth", value);
                         editor.apply();
                     }
                     paintView.setStrokeWidth(value);
                 });
         binding.setColor.setOnClickListener(
                 v -> {
-                    AmbilWarnaDialog colorDailog =
-                            new AmbilWarnaDialog(
-                                    this,
-                                    settings.getInt("PAINT_COLOR", Color.GREEN),
-                                    new AmbilWarnaDialog.OnAmbilWarnaListener() {
+                    new ColorPickerDialog.Builder(this)
+                            .setPreferenceName("colorPicker")
+                            .attachAlphaSlideBar(true)
+                            .attachBrightnessSlideBar(true)
+                            .setTitle("Select Color")
+                            .setPositiveButton(
+                                    "Select",
+                                    new ColorEnvelopeListener() {
+
                                         @Override
-                                        public void onOk(AmbilWarnaDialog dialog, int color) {
+                                        public void onColorSelected(
+                                                ColorEnvelope envelope, boolean fromUser) {
                                             if (paintView.isDrawPath()) {
-                                                editor.putInt("PAINT_COLOR", color);
+                                                editor.putInt("paintColor", envelope.getColor());
                                                 editor.apply();
                                                 colorDrawable.setTint(
-                                                        settings.getInt(
-                                                                "PAINT_COLOR", Color.GREEN));
+                                                        settings.getInt("paintColor", Color.BLACK));
                                             }
-                                            paintView.setStrokeColor(color);
+                                            paintView.setStrokeColor(envelope.getColor());
                                         }
-
-                                        @Override
-                                        public void onCancel(AmbilWarnaDialog dialog) {}
-                                    });
-                    colorDailog.show();
+                                    })
+                            .setNegativeButton("Cancel", null)
+                            .create()
+                            .show();
                 });
-
         changeDrawMethod();
     }
 
@@ -145,7 +149,7 @@ public class DrawingActivity extends AppCompatActivity {
                             });
                     Bitmap bitmap = paintView.exportImage();
                     Bitmap.CompressFormat imageFormat =
-                            suffix == "png"
+                            suffix.equals("png")
                                     ? Bitmap.CompressFormat.PNG
                                     : Bitmap.CompressFormat.JPEG;
 
@@ -222,7 +226,9 @@ public class DrawingActivity extends AppCompatActivity {
                                             Intent intent = new Intent(Intent.ACTION_SEND);
                                             intent.putExtra(Intent.EXTRA_STREAM, uri);
                                             intent.setType(
-                                                    suffix == "png" ? "image/png" : "image/jpeg");
+                                                    suffix.equals("png")
+                                                            ? "image/png"
+                                                            : "image/jpeg");
                                             startActivity(
                                                     Intent.createChooser(intent, "Share image"));
                                         } catch (Exception err) {
