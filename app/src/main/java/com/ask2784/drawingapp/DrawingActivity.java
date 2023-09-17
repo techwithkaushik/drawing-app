@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,7 +26,6 @@ import androidx.core.content.FileProvider;
 import com.ask2784.drawingapp.databinding.ActivityDrawingBinding;
 import com.ask2784.drawingapp.databinding.SaveDrawingBinding;
 import com.google.android.material.slider.RangeSlider;
-
 import com.skydoves.colorpickerview.ColorEnvelope;
 import com.skydoves.colorpickerview.ColorPickerDialog;
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
@@ -56,6 +56,7 @@ public class DrawingActivity extends AppCompatActivity {
         editor = settings.edit();
         paintView = binding.drawLayout;
         strokeSize = binding.changeSize;
+        registerForContextMenu(binding.draw);
         strokeSize.setValueFrom(0.5f);
         strokeSize.setValueTo(50.0f);
         strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
@@ -63,20 +64,12 @@ public class DrawingActivity extends AppCompatActivity {
                 v -> {
                     paintView.startDrawing();
                     strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
-                    isExtra = false;
-                    binding.extraDraw.setVisibility(View.GONE);
                 });
 
         binding.selectPath.setOnClickListener(v -> paintView.startSelect(strokeSize));
 
         Drawable colorDrawable = binding.setColor.getDrawable();
         colorDrawable.setTint(settings.getInt("paintColor", Color.GREEN));
-        binding.draw.setOnLongClickListener(
-                v -> {
-                    if (paintView.getSelectedDrawing() != null || paintView.isDrawPath())
-                        changeDrawMethodOnLongClick();
-                    return true;
-                });
 
         strokeSize.addOnChangeListener(
                 (slider, value, userValue) -> {
@@ -113,7 +106,6 @@ public class DrawingActivity extends AppCompatActivity {
                             .create()
                             .show();
                 });
-        changeDrawMethod();
     }
 
     private void exportImage() {
@@ -239,54 +231,6 @@ public class DrawingActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void changeDrawMethodOnLongClick() {
-        isExtra = !isExtra ? true : false;
-        binding.extraDraw.setVisibility(isExtra ? View.VISIBLE : View.GONE);
-    }
-
-    Drawable drawable;
-
-    private void changeDrawMethod() {
-        binding.drawBrush.setOnClickListener(
-                v -> {
-                    drawable = binding.drawBrush.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.BRUSH);
-                });
-        binding.drawPencil.setOnClickListener(
-                v -> {
-                    drawable = binding.drawPencil.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.LINE);
-                });
-        binding.drawRectangle.setOnClickListener(
-                v -> {
-                    drawable = binding.drawRectangle.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.RECTANGLE);
-                });
-        binding.drawSquare.setOnClickListener(
-                v -> {
-                    drawable = binding.drawSquare.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.SQUARE);
-                });
-        binding.drawCircle.setOnClickListener(
-                v -> {
-                    drawable = binding.drawCircle.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.CIRCLE);
-                });
-        binding.drawTriangle.setOnClickListener(
-                v -> {
-                    drawable = binding.drawTriangle.getDrawable();
-                    binding.draw.setImageDrawable(drawable);
-                    paintView.setDrawMethod(ShapeType.TRIANGLE);
-                });
-    }
-
-    boolean isExtra = false;
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.draw_menu, menu);
@@ -295,7 +239,6 @@ public class DrawingActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-
         int id = item.getItemId();
         if (id == R.id.undo) paintView.undo();
         else if (id == R.id.redo) paintView.redo();
@@ -304,6 +247,31 @@ public class DrawingActivity extends AppCompatActivity {
         else if (id == R.id.save_project) saveProject();
         else if (id == R.id.load_project) loadProject();
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onCreateContextMenu(
+            ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        getMenuInflater().inflate(R.menu.draw_shapes, menu);
+        menu.setHeaderTitle("Select Shape");
+    }
+
+    private void changeDrawMethod(MenuItem item, ShapeType shape) {
+        binding.draw.setImageDrawable(item.getIcon());
+        paintView.setDrawMethod(shape);
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.brush) changeDrawMethod(item, ShapeType.BRUSH);
+        else if (id == R.id.line) changeDrawMethod(item, ShapeType.LINE);
+        else if (id == R.id.rectangle) changeDrawMethod(item, ShapeType.RECTANGLE);
+        else if (id == R.id.square) changeDrawMethod(item, ShapeType.SQUARE);
+        else if (id == R.id.triangle) changeDrawMethod(item, ShapeType.TRIANGLE);
+        else if (id == R.id.circle) changeDrawMethod(item, ShapeType.CIRCLE);
+        return super.onContextItemSelected(item);
     }
 
     private void saveProject() {}
