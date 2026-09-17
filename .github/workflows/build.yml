@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '25'
 
       - name: assembleDebug
         run: bash ./gradlew assembleDebug
