@@ -79,11 +79,11 @@ public final class DrawingProjectStore {
                 Path path = drawing.getPathList().get(i);
                 if (paint == null || path == null) throw new IOException("Invalid stroke data");
                 float strokeWidth = paint.getStrokeWidth();
-                if (!Float.isFinite(strokeWidth) || strokeWidth <= 0f || strokeWidth > 1000f) {
+                if (!Float.isFinite(strokeWidth) || strokeWidth < 0.5f || strokeWidth > 50f) {
                     throw new IOException("Invalid stroke width");
                 }
                 out.writeInt(paint.getColor());
-                out.writeFloat(Math.max(0.5f, strokeWidth));
+                out.writeFloat(strokeWidth);
                 out.writeUTF(paint.getShapeType() == null ? ShapeType.BRUSH.name() : paint.getShapeType().name());
                 out.writeUTF(paint.getCap() == null ? Paint.Cap.ROUND.name() : paint.getCap().name());
                 out.writeUTF(paint.getJoin() == null ? Paint.Join.ROUND.name() : paint.getJoin().name());
@@ -147,7 +147,7 @@ public final class DrawingProjectStore {
             for (int i = 0; i < count; i++) {
                 int color = in.readInt();
                 float width = in.readFloat();
-                if (!Float.isFinite(width) || width <= 0 || width > 1000) {
+                if (!Float.isFinite(width) || width < 0.5f || width > 50f) {
                     throw new IOException("Invalid stroke width");
                 }
                 ShapeType shape = enumValue(ShapeType.class, in.readUTF(), ShapeType.BRUSH);
