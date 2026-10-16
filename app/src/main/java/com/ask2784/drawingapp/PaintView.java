@@ -11,7 +11,6 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
-import android.graphics.Region;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -126,16 +125,18 @@ public class PaintView extends View {
         canvas.translate(canvasOffsetX, canvasOffsetY);
         canvas.scale(canvasScale, canvasScale);
 
-        drawSelectedPathHighlight(canvas);
-
-        for (int i = 0; i < paints.size(); i++) {
-            dPaint.setColor(paints.get(i).getColor());
-            dPaint.setStrokeWidth(paints.get(i).getStrokeWidth());
-            dPaint.setStrokeJoin(paints.get(i).getJoin());
-            dPaint.setStrokeCap(paints.get(i).getCap());
-            dPaint.setStyle(paints.get(i).getStyle());
+        for (int i = 0; i < paints.size() && i < paths.size(); i++) {
+            SerializePaint stroke = paints.get(i);
+            dPaint.setColor(stroke.getColor());
+            dPaint.setStrokeWidth(stroke.getStrokeWidth());
+            dPaint.setStrokeJoin(stroke.getJoin());
+            dPaint.setStrokeCap(stroke.getCap());
+            dPaint.setStyle(stroke.getStyle());
             canvas.drawPath(paths.get(i), dPaint);
         }
+
+        // Draw selection overlays last so they remain visible over the selected stroke.
+        drawSelectedPathHighlight(canvas);
 
         if (isShapeDrawing) {
             // Preview must use the current tool settings, not the last saved stroke's paint.
@@ -152,6 +153,7 @@ public class PaintView extends View {
     }
 
     public void setDrawMethod(ShapeType shapeType) {
+        setEraserEnabled(false);
         this.shapeType = shapeType == null ? ShapeType.BRUSH : shapeType;
         isShapeDrawing = false;
         isDraw = true;
@@ -311,17 +313,7 @@ public class PaintView extends View {
         if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
 
         if (selectedDrawing != null) {
-            Region r = new Region();
             RectF selectedPathBounds = getExpandedBounds(selectedDrawing);
-            // selectedPath.path.computeBounds(selectedPathBounds, true);
-            r.setPath(
-                    selectedDrawing.getPath(),
-                    new Region(
-                            (int) (selectedPathBounds.left),
-                            (int) (selectedPathBounds.top),
-                            (int) (selectedPathBounds.right),
-                            (int) (selectedPathBounds.bottom)));
-
             canvas.drawRect(selectedPathBounds, dashedRectanglePaint);
         }
     }
@@ -398,8 +390,8 @@ public class PaintView extends View {
     }
 
     public void setCanvasBackgroundColor(int color) {
-        canvasBackgroundColor = color;
-        settings.edit().putInt("canvasBackgroundColor", color).apply();
+        canvasBackgroundColor = color | 0xFF000000;
+        settings.edit().putInt("canvasBackgroundColor", canvasBackgroundColor).apply();
         if (eraserEnabled) currentColor = color;
         selectedDrawing = null;
         invalidate();
