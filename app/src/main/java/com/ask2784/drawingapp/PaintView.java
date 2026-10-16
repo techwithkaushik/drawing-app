@@ -50,6 +50,7 @@ public class PaintView extends View {
     // private SerializePath mPath, selectionAreaPath;
     private Path mPath, selectionAreaPath;
     private int currentColor;
+    private int canvasBackgroundColor = Color.WHITE;
     private int colorBeforeEraser = Color.GREEN;
     private boolean eraserEnabled = false;
     private float currentStrokeWidth = 5;
@@ -118,7 +119,7 @@ public class PaintView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        canvas.drawColor(Color.WHITE);
+        canvas.drawColor(canvasBackgroundColor);
         canvas.save();
         canvas.translate(canvasOffsetX, canvasOffsetY);
         canvas.scale(canvasScale, canvasScale);
@@ -181,8 +182,9 @@ public class PaintView extends View {
 
     public DrawingData saveProject() {
         DrawingData data = new DrawingData();
-        data.setPaintList(paints);
-        data.setPathList(paths);
+        data.setPaintList(new ArrayList<>(paints));
+        data.setPathList(new ArrayList<>(paths));
+        data.setBackgroundColor(canvasBackgroundColor);
         return data;
     }
 
@@ -195,6 +197,8 @@ public class PaintView extends View {
         }
         paints = new ArrayList<>(drawingData.getPaintList());
         paths = new ArrayList<>(drawingData.getPathList());
+        canvasBackgroundColor = drawingData.getBackgroundColor();
+        if (eraserEnabled) currentColor = canvasBackgroundColor;
         redoPaint.clear();
         redoPaths.clear();
         selectedDrawing = null;
@@ -314,7 +318,7 @@ public class PaintView extends View {
         if (enabled == eraserEnabled) return;
         if (enabled) {
             colorBeforeEraser = currentColor;
-            currentColor = Color.WHITE;
+            currentColor = canvasBackgroundColor;
         } else {
             currentColor = colorBeforeEraser;
         }
@@ -325,6 +329,17 @@ public class PaintView extends View {
 
     public boolean isEraserEnabled() {
         return eraserEnabled;
+    }
+
+    public void setCanvasBackgroundColor(int color) {
+        canvasBackgroundColor = color;
+        if (eraserEnabled) currentColor = color;
+        selectedDrawing = null;
+        invalidate();
+    }
+
+    public int getCanvasBackgroundColor() {
+        return canvasBackgroundColor;
     }
 
     public void setStrokeColor(int strokeColor) {
@@ -387,7 +402,7 @@ public class PaintView extends View {
         }
         Bitmap result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas exportCanvas = new Canvas(result);
-        exportCanvas.drawColor(Color.WHITE);
+        exportCanvas.drawColor(canvasBackgroundColor);
         Paint exportPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
         for (int i = 0; i < paints.size() && i < paths.size(); i++) {
             SerializePaint stroke = paints.get(i);
