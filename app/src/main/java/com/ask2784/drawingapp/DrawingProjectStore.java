@@ -60,6 +60,9 @@ public final class DrawingProjectStore {
         if (drawing.getPaintList().size() != drawing.getPathList().size()) {
             throw new IOException("Drawing data is inconsistent");
         }
+        if (drawing.getPaintList().size() > MAX_STROKES) {
+            throw new IOException("Drawing contains too many strokes");
+        }
 
         File directory = projectDirectory(filesDir);
         File target = new File(directory, name + ".draw");
@@ -69,20 +72,30 @@ public final class DrawingProjectStore {
             out.writeInt(MAGIC);
             out.writeInt(VERSION);
             out.writeInt(drawing.getPaintList().size());
-            out.writeInt(drawing.getBackgroundColor());
+            out.writeInt(drawing.getBackgroundColor() | 0xFF000000);
+            int totalApproximationValues = 0;
             for (int i = 0; i < drawing.getPaintList().size(); i++) {
                 SerializePaint paint = drawing.getPaintList().get(i);
                 Path path = drawing.getPathList().get(i);
                 if (paint == null || path == null) throw new IOException("Invalid stroke data");
+                float strokeWidth = paint.getStrokeWidth();
+                if (!Float.isFinite(strokeWidth) || strokeWidth <= 0f || strokeWidth > 1000f) {
+                    throw new IOException("Invalid stroke width");
+                }
                 out.writeInt(paint.getColor());
-                out.writeFloat(Math.max(0.5f, paint.getStrokeWidth()));
+                out.writeFloat(Math.max(0.5f, strokeWidth));
                 out.writeUTF(paint.getShapeType() == null ? ShapeType.BRUSH.name() : paint.getShapeType().name());
                 out.writeUTF(paint.getCap() == null ? Paint.Cap.ROUND.name() : paint.getCap().name());
                 out.writeUTF(paint.getJoin() == null ? Paint.Join.ROUND.name() : paint.getJoin().name());
                 out.writeUTF(paint.getStyle() == null ? Paint.Style.STROKE.name() : paint.getStyle().name());
                 float[] points = path.approximate(0.5f);
-                if (points.length > MAX_APPROXIMATION_VALUES) {
-                    throw new IOException("A stroke is too complex to save");
+                if (points.length % 3 != 0
+                        || points.length > MAX_APPROXIMATION_VALUES - totalApproximationValues) {
+                    throw new IOException("Drawing is too complex to save");
+                }
+                totalApproximationValues += points.length;
+                for (float point : points) {
+                    if (!Float.isFinite(point)) throw new IOException("Drawing contains invalid coordinates");
                 }
                 out.writeInt(points.length);
                 for (float point : points) out.writeFloat(point);
@@ -111,6 +124,10 @@ public final class DrawingProjectStore {
     }
 
     public static DrawingData load(File file) throws IOException {
+        if (file == null || !file.isFile()) throw new IOException("Project file does not exist");
+        if (file.length() < 12 || file.length() > 20L * 1024L * 1024L) {
+            throw new IOException("Project file size is invalid");
+        }
         ArrayList<SerializePaint> paints = new ArrayList<>();
         ArrayList<Path> paths = new ArrayList<>();
         int backgroundColor = android.graphics.Color.WHITE;
@@ -123,7 +140,9 @@ public final class DrawingProjectStore {
             }
             int count = in.readInt();
             if (count < 0 || count > MAX_STROKES) throw new IOException("Invalid stroke count");
-            backgroundColor = version >= 2 ? in.readInt() : android.graphics.Color.WHITE;
+            backgroundColor = version >= 2
+                    ? (in.readInt() | 0xFF000000) : android.graphics.Color.WHITE;
+            int totalApproximationValues = 0;
 
             for (int i = 0; i < count; i++) {
                 int color = in.readInt();
@@ -136,9 +155,11 @@ public final class DrawingProjectStore {
                 Paint.Join join = enumValue(Paint.Join.class, in.readUTF(), Paint.Join.ROUND);
                 Paint.Style style = enumValue(Paint.Style.class, in.readUTF(), Paint.Style.STROKE);
                 int length = in.readInt();
-                if (length < 0 || length > MAX_APPROXIMATION_VALUES || length % 3 != 0) {
-                    throw new IOException("Invalid stroke points");
+                if (length < 0 || length % 3 != 0
+                        || length > MAX_APPROXIMATION_VALUES - totalApproximationValues) {
+                    throw new IOException("Invalid or oversized stroke points");
                 }
+                totalApproximationValues += length;
                 Path path = new Path();
                 boolean hasPoint = false;
                 float previousFraction = -1f;
