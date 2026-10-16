@@ -49,6 +49,8 @@ public class PaintView extends View {
     // private SerializePath mPath, selectionAreaPath;
     private Path mPath, selectionAreaPath;
     private int currentColor;
+    private int colorBeforeEraser = Color.GREEN;
+    private boolean eraserEnabled = false;
     private float currentStrokeWidth = 5;
     private Bitmap bitmap;
     private DrawingData selectedDrawing = null;
@@ -94,9 +96,6 @@ public class PaintView extends View {
 
         drawSelectedPathHighlight(canvas);
 
-        bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
-        mCanvas = new Canvas(bitmap);
-        mCanvas.drawColor(Color.WHITE);
         for (int i = 0; i < paints.size(); i++) {
             dPaint.setColor(paints.get(i).getColor());
             dPaint.setStrokeWidth(paints.get(i).getStrokeWidth());
@@ -104,7 +103,6 @@ public class PaintView extends View {
             dPaint.setStrokeCap(paints.get(i).getCap());
             dPaint.setStyle(paints.get(i).getStyle());
             canvas.drawPath(paths.get(i), dPaint);
-            mCanvas.drawPath(paths.get(i), dPaint);
         }
 
         if (isShapeDrawing) {
@@ -272,7 +270,27 @@ public class PaintView extends View {
         return isDraw;
     }
 
+    public void setEraserEnabled(boolean enabled) {
+        if (enabled == eraserEnabled) return;
+        if (enabled) {
+            colorBeforeEraser = currentColor;
+            currentColor = Color.WHITE;
+        } else {
+            currentColor = colorBeforeEraser;
+        }
+        eraserEnabled = enabled;
+        selectedDrawing = null;
+        invalidate();
+    }
+
+    public boolean isEraserEnabled() {
+        return eraserEnabled;
+    }
+
     public void setStrokeColor(int strokeColor) {
+        eraserEnabled = false;
+        currentColor = strokeColor;
+        if (selectedDrawing != null) {
         if (selectedDrawing != null) {
             if (selectedDrawing.getPaint().getPosition() >= 0
                     && selectedDrawing.getPaint().getPosition() < paints.size()) {
@@ -318,7 +336,25 @@ public class PaintView extends View {
     }
 
     public Bitmap exportImage() {
-        return bitmap;
+        int width = getWidth();
+        int height = getHeight();
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+        Bitmap result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas exportCanvas = new Canvas(result);
+        exportCanvas.drawColor(Color.WHITE);
+        Paint exportPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+        for (int i = 0; i < paints.size() && i < paths.size(); i++) {
+            SerializePaint stroke = paints.get(i);
+            exportPaint.setColor(stroke.getColor());
+            exportPaint.setStrokeWidth(stroke.getStrokeWidth());
+            exportPaint.setStrokeJoin(stroke.getJoin());
+            exportPaint.setStrokeCap(stroke.getCap());
+            exportPaint.setStyle(stroke.getStyle());
+            exportCanvas.drawPath(paths.get(i), exportPaint);
+        }
+        return result;
     }
 
     private void startDrawing(float x, float y) {
