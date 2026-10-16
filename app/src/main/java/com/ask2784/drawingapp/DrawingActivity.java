@@ -118,6 +118,11 @@ public class DrawingActivity extends AppCompatActivity {
                             .create()
                             .show();
                 });
+
+        String requestedProject = getIntent().getStringExtra("project_name");
+        if (requestedProject != null && !requestedProject.trim().isEmpty()) {
+            openProjectByName(requestedProject);
+        }
     }
 
     private void exportImage() {
@@ -332,6 +337,26 @@ public class DrawingActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void openProjectByName(String projectName) {
+        try {
+            File file = new File(DrawingProjectStore.projectDirectory(getFilesDir()),
+                    DrawingProjectStore.sanitizeName(projectName) + ".draw");
+            if (!file.isFile()) {
+                Toast.makeText(this, "Project no longer exists.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            DrawingData project = DrawingProjectStore.load(file);
+            paintView.loadProject(project);
+            fileName = projectName;
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle(fileName);
+            paintView.startDrawing();
+            Toast.makeText(this, "Project opened: " + fileName, Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not open project: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void persistProject(String projectName) {
         try {
             DrawingProjectStore.save(getFilesDir(), projectName, paintView.saveProject());
@@ -359,17 +384,7 @@ public class DrawingActivity extends AppCompatActivity {
             new AlertDialog.Builder(this)
                     .setTitle("Open project")
                     .setItems(names, (dialog, index) -> {
-                        try {
-                            DrawingData project = DrawingProjectStore.load(projects[index]);
-                            paintView.loadProject(project);
-                            fileName = names[index];
-                            if (getSupportActionBar() != null) getSupportActionBar().setTitle(fileName);
-                            paintView.startDrawing();
-                            Toast.makeText(this, "Project opened: " + fileName, Toast.LENGTH_SHORT).show();
-                        } catch (IOException error) {
-                            Toast.makeText(this, "Could not open project: " + error.getMessage(),
-                                    Toast.LENGTH_LONG).show();
-                        }
+                        openProjectByName(names[index]);
                     })
                     .setNegativeButton("Cancel", null)
                     .show();
