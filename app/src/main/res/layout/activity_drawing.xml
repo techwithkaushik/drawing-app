@@ -29,6 +29,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentStart="true"
         android:layout_marginStart="20dp"
+        android:contentDescription="Stroke width"
         android:id="@+id/changeSize" />
 
     <LinearLayout
@@ -57,7 +58,7 @@
                 android:padding="8dp"
                 android:layout_marginStart="2dp"
                 android:id="@+id/select_path"
-                android:text="select" />
+                android:contentDescription="Select strokes" />
 
             <ImageButton
                 android:layout_height="wrap_content"
@@ -68,7 +69,7 @@
                 android:padding="8dp"
                 android:layout_marginStart="2dp"
                 android:id="@+id/set_color"
-                android:text="color" />
+                android:contentDescription="Choose stroke color" />
 
             <ImageButton
                 android:layout_height="wrap_content"
@@ -79,7 +80,7 @@
                 android:padding="8dp"
                 android:layout_marginStart="2dp"
                 android:id="@+id/eraser"
-                android:text="eraser" />
+                android:contentDescription="Toggle eraser" />
 
             <ImageButton
                 android:layout_height="wrap_content"
@@ -89,7 +90,7 @@
                 android:padding="8dp"
                 android:layout_marginStart="2dp"
                 android:id="@+id/draw"
-                android:text="draw" />
+                android:contentDescription="Choose drawing tool" />
 
         </LinearLayout>
 
