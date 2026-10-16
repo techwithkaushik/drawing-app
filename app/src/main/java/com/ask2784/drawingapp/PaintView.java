@@ -203,12 +203,12 @@ public class PaintView extends View {
     }
 
     private void drawSelectedPathHighlight(Canvas canvas) {
-        if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
         dashedRectanglePaint = new Paint();
         dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
         dashedRectanglePaint.setStyle(Paint.Style.STROKE);
         dashedRectanglePaint.setStrokeWidth(2);
         dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
+        if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
 
         if (selectedDrawing != null) {
             Region r = new Region();
@@ -227,6 +227,7 @@ public class PaintView extends View {
     }
 
     public void startDrawing() {
+        setEraserEnabled(false);
         if (!isDraw) {
             isDraw = true;
             isMove = false;
