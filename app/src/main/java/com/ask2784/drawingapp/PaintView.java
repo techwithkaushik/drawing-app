@@ -372,6 +372,13 @@ public class PaintView extends View {
         }
     }
 
+    public void resetViewport() {
+        canvasScale = 1f;
+        canvasOffsetX = 0f;
+        canvasOffsetY = 0f;
+        invalidate();
+    }
+
     public Bitmap exportImage() {
         int width = getWidth();
         int height = getHeight();
