@@ -113,6 +113,7 @@ public final class DrawingProjectStore {
     public static DrawingData load(File file) throws IOException {
         ArrayList<SerializePaint> paints = new ArrayList<>();
         ArrayList<Path> paths = new ArrayList<>();
+        int backgroundColor = android.graphics.Color.WHITE;
         try (DataInputStream in = new DataInputStream(
                 new BufferedInputStream(new FileInputStream(file)))) {
             if (in.readInt() != MAGIC) throw new IOException("This is not a drawing project");
@@ -122,7 +123,7 @@ public final class DrawingProjectStore {
             }
             int count = in.readInt();
             if (count < 0 || count > MAX_STROKES) throw new IOException("Invalid stroke count");
-            int backgroundColor = version >= 2 ? in.readInt() : android.graphics.Color.WHITE;
+            backgroundColor = version >= 2 ? in.readInt() : android.graphics.Color.WHITE;
 
             for (int i = 0; i < count; i++) {
                 int color = in.readInt();
