@@ -85,7 +85,7 @@ public class PaintView extends View {
                     @Override
                     public boolean onScale(ScaleGestureDetector detector) {
                         float oldScale = canvasScale;
-                        float newScale = Math.max(1f, Math.min(5f, oldScale * detector.getScaleFactor()));
+                        float newScale = Math.max(0.5f, Math.min(5f, oldScale * detector.getScaleFactor()));
                         float focusX = detector.getFocusX();
                         float focusY = detector.getFocusY();
                         float canvasFocusX = (focusX - canvasOffsetX) / oldScale;
@@ -592,7 +592,8 @@ public class PaintView extends View {
             }
             midX /= event.getPointerCount();
             midY /= event.getPointerCount();
-            if (lastGestureX != 0f || lastGestureY != 0f) {
+            if (!scaleGestureDetector.isInProgress()
+                    && (lastGestureX != 0f || lastGestureY != 0f)) {
                 canvasOffsetX += midX - lastGestureX;
                 canvasOffsetY += midY - lastGestureY;
             }
