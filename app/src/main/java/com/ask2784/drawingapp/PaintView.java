@@ -103,7 +103,12 @@ public class PaintView extends View {
 
     private void setupDraw() {
         shapeType = ShapeType.BRUSH;
-        currentStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
+        float savedStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
+        if (!Float.isFinite(savedStrokeWidth) || savedStrokeWidth < 0.5f || savedStrokeWidth > 50f) {
+            savedStrokeWidth = 5.0f;
+            settings.edit().putFloat("strokeWidth", savedStrokeWidth).apply();
+        }
+        currentStrokeWidth = savedStrokeWidth;
         currentColor = settings.getInt("paintColor", Color.GREEN);
         canvasBackgroundColor = settings.getInt("canvasBackgroundColor", Color.WHITE);
         dPaint = new Paint();
@@ -541,7 +546,7 @@ public class PaintView extends View {
 
     private void startPathMoving(float x, float y) {
         if (selectedDrawing != null) {
-            selectedDrawing.getPath().computeBounds(expandedBounds, true);
+            expandedBounds.set(getExpandedBounds(selectedDrawing));
             if (expandedBounds.contains(x, y)) {
                 isMoving = true;
                 isSelecting = false;
@@ -777,6 +782,9 @@ public class PaintView extends View {
                         builder.setPositiveButton(
                                 "Delete",
                                 (dialog, id) -> {
+                                    // A destructive edit invalidates any pending redo strokes.
+                                    redoPaint.clear();
+                                    redoPaths.clear();
                                     paths.remove(p);
                                     paints.remove(p);
                                     selectedDrawing = null;
