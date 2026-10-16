@@ -15,7 +15,7 @@ A lightweight native Android drawing app built with Java, Android Canvas and Mat
 - **Editable project save/load** in app-private storage, using a versioned project format.
 - **Export and share** artwork as PNG or JPEG.
 - **Modern home screen** with direct access to new drawings and saved projects.
-- **No broad storage permission** needed to export images through Android MediaStore.
+- **Scoped export on Android 10+** uses MediaStore without broad storage permission; Android 8–9 requests legacy write permission only when exporting.
 - **On-demand export rendering** avoids allocating a full-size bitmap during every canvas redraw.
 - **Debug CI builds** do not require release keystore secrets.
 
