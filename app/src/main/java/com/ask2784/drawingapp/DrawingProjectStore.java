@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Small versioned, app-private drawing-project format. Paths are stored as
@@ -92,15 +94,17 @@ public final class DrawingProjectStore {
             throw new IOException("Unable to save project", error);
         }
 
-        if (target.exists() && !target.delete()) {
+        try {
+            try {
+                Files.move(temporary.toPath(), target.toPath(),
+                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException atomicMoveError) {
+                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException error) {
             //noinspection ResultOfMethodCallIgnored
             temporary.delete();
-            throw new IOException("Unable to replace existing project");
-        }
-        if (!temporary.renameTo(target)) {
-            //noinspection ResultOfMethodCallIgnored
-            temporary.delete();
-            throw new IOException("Unable to finalize project file");
+            throw new IOException("Unable to finalize project file", error);
         }
         return target;
     }
@@ -133,6 +137,8 @@ public final class DrawingProjectStore {
                 Path path = new Path();
                 boolean hasPoint = false;
                 float previousFraction = -1f;
+                float previousX = 0f;
+                float previousY = 0f;
                 for (int p = 0; p < length; p += 3) {
                     float fraction = in.readFloat();
                     float x = in.readFloat();
@@ -140,13 +146,17 @@ public final class DrawingProjectStore {
                     if (!Float.isFinite(fraction) || !Float.isFinite(x) || !Float.isFinite(y)) {
                         throw new IOException("Project contains invalid coordinates");
                     }
-                    if (!hasPoint || fraction < previousFraction) {
+                    boolean startsNewContour = hasPoint && fraction <= previousFraction
+                            && (x != previousX || y != previousY);
+                    if (!hasPoint || startsNewContour) {
                         path.moveTo(x, y);
                         hasPoint = true;
                     } else {
                         path.lineTo(x, y);
                     }
                     previousFraction = fraction;
+                    previousX = x;
+                    previousY = y;
                 }
                 paints.add(new SerializePaint(color, width, shape, cap, join, style));
                 paths.add(path);
