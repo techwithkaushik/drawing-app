@@ -74,10 +74,6 @@ public class DrawingActivity extends AppCompatActivity {
             boolean enabled = !paintView.isEraserEnabled();
             paintView.setEraserEnabled(enabled);
             binding.eraser.setAlpha(enabled ? 0.55f : 1.0f);
-            if (enabled) {
-                paintView.startDrawing();
-                paintView.setEraserEnabled(true);
-            }
         });
 
         Drawable colorDrawable = binding.setColor.getDrawable();
@@ -193,6 +189,7 @@ public class DrawingActivity extends AppCompatActivity {
                                 values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
                                 values.put(MediaStore.Images.Media.RELATIVE_PATH,
                                         Environment.DIRECTORY_PICTURES + "/Lets Draw");
+                                values.put(MediaStore.Images.Media.IS_PENDING, 1);
                                 Uri uri = getContentResolver().insert(
                                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                                 if (uri == null) {
@@ -207,6 +204,9 @@ public class DrawingActivity extends AppCompatActivity {
                                     if (!bitmap.compress(format, 100, output)) {
                                         throw new IOException("Image encoding failed");
                                     }
+                                    ContentValues published = new ContentValues();
+                                    published.put(MediaStore.Images.Media.IS_PENDING, 0);
+                                    getContentResolver().update(uri, published, null, null);
                                     Toast.makeText(this, fileName + " saved to Pictures/Lets Draw.",
                                             Toast.LENGTH_SHORT).show();
                                     dialog.dismiss();
@@ -234,29 +234,27 @@ public class DrawingActivity extends AppCompatActivity {
                                             }
                                             File file =
                                                     new File(imageFolder, fileName + "." + suffix);
-                                            FileOutputStream outup = new FileOutputStream(file);
                                             Bitmap.CompressFormat imageFormat =
                                                     "png".equalsIgnoreCase(suffix)
                                                             ? Bitmap.CompressFormat.PNG
                                                             : Bitmap.CompressFormat.JPEG;
-                                            bitmap.compress(imageFormat, 100, outup);
-                                            outup.flush();
-                                            outup.close();
-                                            uri =
-                                                    FileProvider.getUriForFile(
-                                                            this,
-                                                            "com.ask2784.drawingapp.fileprovider",
-                                                            file);
+                                            try (FileOutputStream output = new FileOutputStream(file)) {
+                                                if (!bitmap.compress(imageFormat, 100, output)) {
+                                                    throw new IOException("Image encoding failed");
+                                                }
+                                                output.flush();
+                                            }
+                                            uri = FileProvider.getUriForFile(
+                                                    this, "com.ask2784.drawingapp.fileprovider", file);
                                             Intent intent = new Intent(Intent.ACTION_SEND);
+                                            intent.setType("png".equalsIgnoreCase(suffix)
+                                                    ? "image/png" : "image/jpeg");
                                             intent.putExtra(Intent.EXTRA_STREAM, uri);
-                                            intent.setType(
-                                                    "png".equalsIgnoreCase(suffix)
-                                                            ? "image/png"
-                                                            : "image/jpeg");
-                                            startActivity(
-                                                    Intent.createChooser(intent, "Share image"));
+                                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                            startActivity(Intent.createChooser(intent, "Share image"));
                                         } catch (Exception err) {
-                                            err.printStackTrace();
+                                            Toast.makeText(this, "Could not share image: "
+                                                    + err.getMessage(), Toast.LENGTH_LONG).show();
                                         }
                                     });
                 });
@@ -297,6 +295,11 @@ public class DrawingActivity extends AppCompatActivity {
             Toast.makeText(this, enabled ? "Shape fill enabled." : "Shape outline enabled.",
                     Toast.LENGTH_SHORT).show();
         }
+        if (id == R.id.undo || id == R.id.redo || id == R.id.clear_drawing
+                || id == R.id.export_image || id == R.id.save_project || id == R.id.load_project
+                || id == R.id.reset_view || id == R.id.set_background || id == R.id.fill_shapes) {
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -322,6 +325,8 @@ public class DrawingActivity extends AppCompatActivity {
         else if (id == R.id.square) changeDrawMethod(item, ShapeType.SQUARE);
         else if (id == R.id.triangle) changeDrawMethod(item, ShapeType.TRIANGLE);
         else if (id == R.id.circle) changeDrawMethod(item, ShapeType.CIRCLE);
+        if (id == R.id.brush || id == R.id.line || id == R.id.rectangle || id == R.id.square
+                || id == R.id.triangle || id == R.id.circle) return true;
         return super.onContextItemSelected(item);
     }
 
@@ -421,15 +426,14 @@ public class DrawingActivity extends AppCompatActivity {
     }
 
     @Override
-    @MainThread
-    public void onBackPressed() {
-        super.onBackPressed();
-        this.binding = null;
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        onBackPressed();
-        return true;
+    protected void onDestroy() {
+        super.onDestroy();
+        binding = null;
     }
 }
