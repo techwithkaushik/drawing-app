@@ -290,6 +290,12 @@ public class DrawingActivity extends AppCompatActivity {
             Toast.makeText(this, "Canvas view reset.", Toast.LENGTH_SHORT).show();
         } else if (id == R.id.set_background) {
             chooseCanvasBackground();
+        } else if (id == R.id.fill_shapes) {
+            boolean enabled = !item.isChecked();
+            item.setChecked(enabled);
+            paintView.setFillShapes(enabled);
+            Toast.makeText(this, enabled ? "Shape fill enabled." : "Shape outline enabled.",
+                    Toast.LENGTH_SHORT).show();
         }
         return super.onOptionsItemSelected(item);
     }
