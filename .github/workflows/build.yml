@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -x ./gradlew
+          test -f ./gradlew
           test -s gradle/wrapper/gradle-wrapper.jar
           test -s gradle/wrapper/gradle-wrapper.properties
           bash -n ./gradlew
