@@ -607,6 +607,22 @@ public class PaintView extends View {
 
         scaleGestureDetector.onTouchEvent(event);
         int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_CANCEL) {
+            if (isDraw && mPath != null && !paths.isEmpty()
+                    && paths.get(paths.size() - 1) == mPath) {
+                paths.remove(paths.size() - 1);
+                paints.remove(paints.size() - 1);
+            }
+            mPath = null;
+            isShapeDrawing = false;
+            isSelecting = false;
+            isMoving = false;
+            viewportGesture = false;
+            lastGestureX = 0f;
+            lastGestureY = 0f;
+            invalidate();
+            return true;
+        }
         if (action == MotionEvent.ACTION_POINTER_DOWN) {
             viewportGesture = true;
             if (isDraw && mPath != null && !paths.isEmpty() && paths.get(paths.size() - 1) == mPath) {
@@ -658,22 +674,6 @@ public class PaintView extends View {
 
         float x = (event.getX() - canvasOffsetX) / canvasScale;
         float y = (event.getY() - canvasOffsetY) / canvasScale;
-        if (action == MotionEvent.ACTION_CANCEL) {
-            if (isDraw && mPath != null && !paths.isEmpty()
-                    && paths.get(paths.size() - 1) == mPath) {
-                paths.remove(paths.size() - 1);
-                paints.remove(paints.size() - 1);
-            }
-            mPath = null;
-            isShapeDrawing = false;
-            isSelecting = false;
-            isMoving = false;
-            viewportGesture = false;
-            lastGestureX = 0f;
-            lastGestureY = 0f;
-            invalidate();
-            return true;
-        }
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 if (isDraw) {
