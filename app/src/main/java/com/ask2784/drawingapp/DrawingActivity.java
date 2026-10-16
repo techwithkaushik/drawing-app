@@ -271,6 +271,10 @@ public class DrawingActivity extends AppCompatActivity {
         else if (id == R.id.export_image) exportImage();
         else if (id == R.id.save_project) saveProject();
         else if (id == R.id.load_project) loadProject();
+        else if (id == R.id.reset_view) {
+            paintView.resetViewport();
+            Toast.makeText(this, "Canvas view reset.", Toast.LENGTH_SHORT).show();
+        }
         return super.onOptionsItemSelected(item);
     }
 
