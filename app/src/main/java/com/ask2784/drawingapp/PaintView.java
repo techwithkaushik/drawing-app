@@ -69,6 +69,8 @@ public class PaintView extends View {
     private float canvasOffsetY = 0f;
     private float lastGestureX = 0f;
     private float lastGestureY = 0f;
+    private float lastMoveX = 0f;
+    private float lastMoveY = 0f;
     private boolean viewportGesture = false;
     private final ScaleGestureDetector scaleGestureDetector;
     private Paint.Cap cap = Paint.Cap.ROUND;
@@ -157,6 +159,8 @@ public class PaintView extends View {
 
     public void setDrawMethod(ShapeType shapeType) {
         this.shapeType = shapeType;
+        isShapeDrawing = false;
+        invalidate();
         switch (shapeType) {
             case LINE:
             case BRUSH:
@@ -205,12 +209,11 @@ public class PaintView extends View {
 
     private void drawLine(Canvas canvas) {
         canvas.drawLine(startX, startY, endX, endY, dPaint);
-        invalidate();
     }
 
     private void drawRectangle(Canvas canvas) {
-        canvas.drawRect(startX, startY, endX, endY, dPaint);
-        invalidate();
+        canvas.drawRect(Math.min(startX, endX), Math.min(startY, endY),
+                Math.max(startX, endX), Math.max(startY, endY), dPaint);
     }
 
     private void drawSquare(Canvas canvas) {
@@ -266,25 +269,26 @@ public class PaintView extends View {
 
     public void startDrawing() {
         setEraserEnabled(false);
-        if (!isDraw) {
-            isDraw = true;
-            isMove = false;
-            selectedDrawing = null;
-            isSelecting = false;
-            isSelect = false;
-        }
+        isDraw = true;
+        isMove = false;
+        isMoving = false;
+        selectedDrawing = null;
+        isSelecting = false;
+        isSelect = false;
+        invalidate();
     }
 
     private RangeSlider slider;
 
     public void startSelect(RangeSlider slider) {
-        if (!isSelect) {
-            isSelect = true;
-            isDraw = false;
-            selectedDrawing = null;
-            isMove = false;
-            this.slider = slider;
-        }
+        isSelect = true;
+        isDraw = false;
+        selectedDrawing = null;
+        isMoving = false;
+        isMove = false;
+        isSelecting = false;
+        this.slider = slider;
+        invalidate();
     }
 
     public DrawingData getSelectedDrawing() {
@@ -359,7 +363,7 @@ public class PaintView extends View {
         if (!paths.isEmpty() && paths.size() == paints.size()) {
             redoPaint.clear();
             redoPaths.clear();
-            for (int i = 0; i < paths.size(); i++) {
+            for (int i = paths.size() - 1; i >= 0; i--) {
                 redoPaint.add(paints.get(i));
                 redoPaths.add(paths.get(i));
             }
@@ -491,6 +495,8 @@ public class PaintView extends View {
             if (expandedBounds.contains(x, y)) {
                 isMoving = true;
                 isSelecting = false;
+                lastMoveX = x;
+                lastMoveY = y;
             }
         }
     }
@@ -498,13 +504,14 @@ public class PaintView extends View {
     private void movePathMoving(float x, float y) {
 
         if (selectedDrawing != null && isMoving) {
-            float offsetX = x - expandedBounds.centerX();
-            float offsetY = y - expandedBounds.centerY();
+            float offsetX = x - lastMoveX;
+            float offsetY = y - lastMoveY;
             Matrix translateMatrix = new Matrix();
-
             translateMatrix.setTranslate(offsetX, offsetY);
             selectedDrawing.getPath().transform(translateMatrix);
             expandedBounds.offset(offsetX, offsetY);
+            lastMoveX = x;
+            lastMoveY = y;
         }
     }
 
