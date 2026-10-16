@@ -1,12 +1,16 @@
 package com.ask2784.drawingapp;
 
+import android.Manifest;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -20,9 +24,10 @@ import android.widget.EditText;
 import android.text.InputType;
 import android.widget.Toast;
 
-import androidx.annotation.MainThread;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.ask2784.drawingapp.databinding.ActivityDrawingBinding;
@@ -44,6 +49,7 @@ public class DrawingActivity extends AppCompatActivity {
     String suffix = "", fileName = "MyDrawing";
     SharedPreferences.Editor editor;
     RangeSlider strokeSize;
+    private static final int REQUEST_WRITE_STORAGE = 301;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,6 +142,13 @@ public class DrawingActivity extends AppCompatActivity {
     }
 
     private void exportImage() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
+            return;
+        }
         SaveDrawingBinding saveBinding = SaveDrawingBinding.inflate(getLayoutInflater());
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Save Drawing")
@@ -184,39 +197,7 @@ public class DrawingActivity extends AppCompatActivity {
                                             Toast.LENGTH_SHORT).show();
                                     return;
                                 }
-                                String mimeType = "png".equalsIgnoreCase(suffix)
-                                        ? "image/png" : "image/jpeg";
-                                ContentValues values = new ContentValues();
-                                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName + "." + suffix);
-                                values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
-                                values.put(MediaStore.Images.Media.RELATIVE_PATH,
-                                        Environment.DIRECTORY_PICTURES + "/Lets Draw");
-                                values.put(MediaStore.Images.Media.IS_PENDING, 1);
-                                Uri uri = getContentResolver().insert(
-                                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-                                if (uri == null) {
-                                    Toast.makeText(this, "Could not create image file.",
-                                            Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-                                try (OutputStream output = getContentResolver().openOutputStream(uri)) {
-                                    if (output == null) throw new IOException("Unable to open output stream");
-                                    Bitmap.CompressFormat format = "png".equalsIgnoreCase(suffix)
-                                            ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG;
-                                    if (!bitmap.compress(format, 100, output)) {
-                                        throw new IOException("Image encoding failed");
-                                    }
-                                    ContentValues published = new ContentValues();
-                                    published.put(MediaStore.Images.Media.IS_PENDING, 0);
-                                    getContentResolver().update(uri, published, null, null);
-                                    Toast.makeText(this, fileName + " saved to Pictures/Lets Draw.",
-                                            Toast.LENGTH_SHORT).show();
-                                    dialog.dismiss();
-                                } catch (Exception error) {
-                                    getContentResolver().delete(uri, null, null);
-                                    Toast.makeText(this, "Could not save image: " + error.getMessage(),
-                                            Toast.LENGTH_LONG).show();
-                                }
+                                saveBitmapToGallery(bitmap, fileName, suffix, dialog);
                             });
                     dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
                             .setOnClickListener(
@@ -261,6 +242,82 @@ public class DrawingActivity extends AppCompatActivity {
                                     });
                 });
         dialog.show();
+    }
+
+    private void saveBitmapToGallery(Bitmap bitmap, String outputName, String outputSuffix,
+            AlertDialog dialog) {
+        String mimeType = "png".equalsIgnoreCase(outputSuffix) ? "image/png" : "image/jpeg";
+        Bitmap.CompressFormat format = "png".equalsIgnoreCase(outputSuffix)
+                ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, outputName + "." + outputSuffix);
+            values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/Lets Draw");
+            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+            Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                Toast.makeText(this, "Could not create image file.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                if (output == null) throw new IOException("Unable to open output stream");
+                if (!bitmap.compress(format, 100, output)) {
+                    throw new IOException("Image encoding failed");
+                }
+                ContentValues published = new ContentValues();
+                published.put(MediaStore.Images.Media.IS_PENDING, 0);
+                int updated = getContentResolver().update(uri, published, null, null);
+                if (updated <= 0) throw new IOException("Could not publish saved image");
+                Toast.makeText(this, outputName + " saved to Pictures/Lets Draw.",
+                        Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+            } catch (Exception error) {
+                getContentResolver().delete(uri, null, null);
+                Toast.makeText(this, "Could not save image: " + error.getMessage(),
+                        Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        File pictureFolder = new File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                "Lets Draw");
+        File outputFile = new File(pictureFolder, outputName + "." + outputSuffix);
+        try {
+            if (!pictureFolder.isDirectory() && !pictureFolder.mkdirs()) {
+                throw new IOException("Could not create Pictures/Lets Draw");
+            }
+            try (FileOutputStream output = new FileOutputStream(outputFile)) {
+                if (!bitmap.compress(format, 100, output)) {
+                    throw new IOException("Image encoding failed");
+                }
+            }
+            MediaScannerConnection.scanFile(this, new String[] {outputFile.getAbsolutePath()},
+                    new String[] {mimeType}, null);
+            Toast.makeText(this, outputName + " saved to Pictures/Lets Draw.",
+                    Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        } catch (Exception error) {
+            //noinspection ResultOfMethodCallIgnored
+            outputFile.delete();
+            Toast.makeText(this, "Could not save image: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_WRITE_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                exportImage();
+            } else {
+                Toast.makeText(this, "Storage permission is needed to export images on this Android version.",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
