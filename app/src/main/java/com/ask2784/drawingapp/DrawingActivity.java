@@ -108,12 +108,9 @@ public class DrawingActivity extends AppCompatActivity {
                                         @Override
                                         public void onColorSelected(
                                                 ColorEnvelope envelope, boolean fromUser) {
-                                            if (paintView.isDrawPath()) {
-                                                editor.putInt("paintColor", envelope.getColor());
-                                                editor.apply();
-                                                colorDrawable.setTint(
-                                                        settings.getInt("paintColor", Color.BLACK));
-                                            }
+                                            editor.putInt("paintColor", envelope.getColor());
+                                            editor.apply();
+                                            colorDrawable.setTint(envelope.getColor());
                                             paintView.setStrokeColor(envelope.getColor());
                                             binding.eraser.setAlpha(1.0f);
                                         }
