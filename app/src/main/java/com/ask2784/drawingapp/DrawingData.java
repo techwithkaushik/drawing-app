@@ -1,6 +1,7 @@
 package com.ask2784.drawingapp;
 
 import android.graphics.Path;
+import android.graphics.Color;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ public class DrawingData implements Serializable {
     private ArrayList<Path> pathList;
     private SerializePaint paint;
     private Path path;
+    private int backgroundColor = Color.WHITE;
 
     public DrawingData(SerializePaint paint, Path path) {
         this.paint = paint;
@@ -53,5 +55,13 @@ public class DrawingData implements Serializable {
 
     public void setPath(Path path) {
         this.path = path;
+    }
+
+    public int getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(int backgroundColor) {
+        this.backgroundColor = backgroundColor;
     }
 }
