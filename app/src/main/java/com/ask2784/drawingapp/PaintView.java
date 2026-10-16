@@ -393,15 +393,15 @@ public class PaintView extends View {
         } else {
             switch (shapeType) {
                 case LINE:
-                    mPath.lineTo(endX, endY);
+                    mPath.lineTo(x, y);
                     break;
                 case BRUSH:
                     break;
                 case RECTANGLE:
-                    mPath.addRect(startX, startY, x, y, Path.Direction.CW);
-                    mPath.addRect(x, y, startX, startY, Path.Direction.CW);
-                    mPath.addRect(x, startY, startX, y, Path.Direction.CW);
-                    mPath.addRect(startX, y, x, startY, Path.Direction.CW);
+                    mPath.addRect(
+                            Math.min(startX, x), Math.min(startY, y),
+                            Math.max(startX, x), Math.max(startY, y),
+                            Path.Direction.CW);
                     break;
                 case SQUARE:
                     float dx = Math.abs(x - startX);
@@ -416,14 +416,14 @@ public class PaintView extends View {
                 case CIRCLE:
                     float radius =
                             (float) Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
-                    mPath.addCircle(endX, endY, radius, Path.Direction.CW);
+                    mPath.addCircle(startX, startY, radius, Path.Direction.CW);
                     break;
                 case TRIANGLE:
                     // Draw a triangle (you can customize the triangle logic)
                     Path trianglePath = new Path();
                     trianglePath.moveTo(startX, startY);
-                    trianglePath.lineTo(endX, endY);
-                    trianglePath.lineTo(startX + (startX - endX), endY);
+                    trianglePath.lineTo(x, y);
+                    trianglePath.lineTo(startX - (x - startX), y);
                     trianglePath.close();
                     mPath.addPath(trianglePath);
                     break;
