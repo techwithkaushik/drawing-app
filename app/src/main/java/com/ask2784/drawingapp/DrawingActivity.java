@@ -162,69 +162,64 @@ public class DrawingActivity extends AppCompatActivity {
                         dialog.dismiss();
                         return;
                     }
-                    fileName = saveBinding.fileName.getText().toString().trim();
+                    dialog.setOnDismissListener(ignored -> {
+                        if (!bitmap.isRecycled()) bitmap.recycle();
+                    });
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                            .setOnClickListener(
-                                    v2 -> {
-                                        if (fileName != null && fileName.length() > 0) {
-
-                                            OutputStream imgOut;
-                                            ContentValues cv = new ContentValues();
-                                            cv.put(
-                                                    MediaStore.Images.Media.DISPLAY_NAME,
-                                                    fileName + "." + suffix);
-                                            cv.put(
-                                                    MediaStore.Images.Media.MIME_TYPE,
-                                                    "image/" + suffix);
-                                            cv.put(
-                                                    MediaStore.Images.Media.RELATIVE_PATH,
-                                                    Environment.DIRECTORY_PICTURES);
-                                            Uri uri =
-                                                    getContentResolver()
-                                                            .insert(
-                                                                    MediaStore.Images.Media
-                                                                            .EXTERNAL_CONTENT_URI,
-                                                                    cv);
-                                            try {
-                                                assert uri != null;
-                                                imgOut = getContentResolver().openOutputStream(uri);
-
-                                                Bitmap.CompressFormat imageFormat =
-                                                        "png".equalsIgnoreCase(suffix)
-                                                                ? Bitmap.CompressFormat.PNG
-                                                                : Bitmap.CompressFormat.JPEG;
-                                                bitmap.compress(imageFormat, 100, imgOut);
-                                                assert imgOut != null;
-                                                imgOut.close();
-                                                Toast.makeText(
-                                                                this,
-                                                                saveBinding
-                                                                                .fileName
-                                                                                .getText()
-                                                                                .toString()
-                                                                        + " Saved",
-                                                                Toast.LENGTH_SHORT)
-                                                        .show();
-                                                dialog.dismiss();
-                                            } catch (Exception err) {
-                                                err.printStackTrace();
-                                            }
-                                        } else {
-                                            Toast.makeText(
-                                                            getApplicationContext(),
-                                                            "FileName is Not Valid.",
-                                                            Toast.LENGTH_SHORT)
-                                                    .show();
-                                        }
-                                    });
+                            .setOnClickListener(v2 -> {
+                                fileName = DrawingProjectStore.sanitizeName(
+                                        saveBinding.fileName.getText().toString());
+                                if (fileName.isEmpty()) {
+                                    Toast.makeText(this, "Enter a valid file name.",
+                                            Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+                                String mimeType = "png".equalsIgnoreCase(suffix)
+                                        ? "image/png" : "image/jpeg";
+                                ContentValues values = new ContentValues();
+                                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName + "." + suffix);
+                                values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
+                                values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                                        Environment.DIRECTORY_PICTURES + "/Lets Draw");
+                                Uri uri = getContentResolver().insert(
+                                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                                if (uri == null) {
+                                    Toast.makeText(this, "Could not create image file.",
+                                            Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+                                try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                                    if (output == null) throw new IOException("Unable to open output stream");
+                                    Bitmap.CompressFormat format = "png".equalsIgnoreCase(suffix)
+                                            ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG;
+                                    if (!bitmap.compress(format, 100, output)) {
+                                        throw new IOException("Image encoding failed");
+                                    }
+                                    Toast.makeText(this, fileName + " saved to Pictures/Lets Draw.",
+                                            Toast.LENGTH_SHORT).show();
+                                    dialog.dismiss();
+                                } catch (Exception error) {
+                                    getContentResolver().delete(uri, null, null);
+                                    Toast.makeText(this, "Could not save image: " + error.getMessage(),
+                                            Toast.LENGTH_LONG).show();
+                                }
+                            });
                     dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
                             .setOnClickListener(
                                     vs -> {
-                                        fileName = saveBinding.fileName.getText().toString().trim();
+                                        fileName = DrawingProjectStore.sanitizeName(
+                                                saveBinding.fileName.getText().toString());
+                                        if (fileName.isEmpty()) {
+                                            Toast.makeText(this, "Enter a valid file name.",
+                                                    Toast.LENGTH_SHORT).show();
+                                            return;
+                                        }
                                         File imageFolder = new File(getCacheDir(), "images");
                                         Uri uri = null;
                                         try {
-                                            imageFolder.mkdir();
+                                            if (!imageFolder.exists() && !imageFolder.mkdirs()) {
+                                                throw new IOException("Unable to prepare share cache");
+                                            }
                                             File file =
                                                     new File(imageFolder, fileName + "." + suffix);
                                             FileOutputStream outup = new FileOutputStream(file);
@@ -243,7 +238,7 @@ public class DrawingActivity extends AppCompatActivity {
                                             Intent intent = new Intent(Intent.ACTION_SEND);
                                             intent.putExtra(Intent.EXTRA_STREAM, uri);
                                             intent.setType(
-                                                    suffix.equals("png")
+                                                    "png".equalsIgnoreCase(suffix)
                                                             ? "image/png"
                                                             : "image/jpeg");
                                             startActivity(
