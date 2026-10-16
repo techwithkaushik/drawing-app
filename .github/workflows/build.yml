@@ -16,8 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Keep wrapper checks local: the upstream validation action depends on an
-      # external service that has intermittently timed out on hosted runners.
+      # Avoid the upstream validation service's intermittent network timeouts.
       - name: Validate Gradle wrapper files
         shell: bash
         run: |
@@ -25,43 +24,8 @@ jobs:
           test -x ./gradlew
           test -s gradle/wrapper/gradle-wrapper.jar
           test -s gradle/wrapper/gradle-wrapper.properties
-          grep -Fq 'distributionUrl=https\\://services.gradle.org/distributions/gradle-' gradle/wrapper/gradle-wrapper.properties
-          grep -Eq 'distributionUrl=.*gradle-[0-9]+(\\.[0-9]+)*-bin\\.zip
-  build:
-    name: Build APK
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Restore cache
-        uses: actions/cache@v6
-        with:
-            path: |
-              ~/.gradle/caches
-              ~/.gradle/wrapper
-            key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-
-            restore-keys: |
-              ${{ runner.os }}-gradle-
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Unit tests
-        run: bash ./gradlew testDebugUnitTest
-      - name: assembleDebug
-        run: bash ./gradlew assembleDebug
-      - name: Upload
-        uses: actions/upload-artifact@v7
-        with:
-          name: drawing-app
-          path: app/build/outputs/apk/debug/**.apk
- gradle/wrapper/gradle-wrapper.properties
+          grep -Fq 'services.gradle.org/distributions/gradle-' gradle/wrapper/gradle-wrapper.properties
+          grep -Fq '-bin.zip' gradle/wrapper/gradle-wrapper.properties
           bash -n ./gradlew
 
   build:
@@ -76,13 +40,12 @@ jobs:
       - name: Restore cache
         uses: actions/cache@v6
         with:
-            path: |
-              ~/.gradle/caches
-              ~/.gradle/wrapper
-            key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-
-            restore-keys: |
-              ${{ runner.os }}-gradle-
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - uses: actions/setup-java@v6
         with:
@@ -91,9 +54,11 @@ jobs:
 
       - name: Unit tests
         run: bash ./gradlew testDebugUnitTest
-      - name: assembleDebug
+
+      - name: Assemble debug APK
         run: bash ./gradlew assembleDebug
-      - name: Upload
+
+      - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
           name: drawing-app
