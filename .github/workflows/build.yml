@@ -43,6 +43,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Unit tests
+        run: bash ./gradlew testDebugUnitTest
       - name: assembleDebug
         run: bash ./gradlew assembleDebug
       - name: Upload
