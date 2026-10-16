@@ -154,11 +154,6 @@ public class DrawingActivity extends AppCompatActivity {
                         dialog.dismiss();
                         return;
                     }
-                    Bitmap.CompressFormat imageFormat =
-                            suffix.equals("png")
-                                    ? Bitmap.CompressFormat.PNG
-                                    : Bitmap.CompressFormat.JPEG;
-
                     fileName = saveBinding.fileName.getText().toString().trim();
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                             .setOnClickListener(
@@ -186,6 +181,10 @@ public class DrawingActivity extends AppCompatActivity {
                                                 assert uri != null;
                                                 imgOut = getContentResolver().openOutputStream(uri);
 
+                                                Bitmap.CompressFormat imageFormat =
+                                                        "png".equalsIgnoreCase(suffix)
+                                                                ? Bitmap.CompressFormat.PNG
+                                                                : Bitmap.CompressFormat.JPEG;
                                                 bitmap.compress(imageFormat, 100, imgOut);
                                                 assert imgOut != null;
                                                 imgOut.close();
@@ -221,6 +220,10 @@ public class DrawingActivity extends AppCompatActivity {
                                             File file =
                                                     new File(imageFolder, fileName + "." + suffix);
                                             FileOutputStream outup = new FileOutputStream(file);
+                                            Bitmap.CompressFormat imageFormat =
+                                                    "png".equalsIgnoreCase(suffix)
+                                                            ? Bitmap.CompressFormat.PNG
+                                                            : Bitmap.CompressFormat.JPEG;
                                             bitmap.compress(imageFormat, 100, outup);
                                             outup.flush();
                                             outup.close();
