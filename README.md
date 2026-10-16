@@ -5,12 +5,13 @@ A lightweight native Android drawing app built with Java, Android Canvas and Mat
 ## Features
 
 - **Freehand brush** with smooth strokes and adjustable stroke width.
-- **Shape tools:** line, rectangle, square, circle and triangle.
+- **Shape tools:** line, rectangle, square, circle and triangle, with outline or filled shapes.
 - **Color picker** with alpha and brightness controls.
 - **Eraser** for removing marks on the white canvas.
 - **Undo and redo**, including restoring strokes after Clear.
 - **Selection and move** tools for adjusting existing strokes.
 - **Pinch-to-zoom and two-finger pan**, plus a Reset Zoom / Pan menu action.
+- **Custom solid canvas background** with a matching eraser color.
 - **Editable project save/load** in app-private storage, using a versioned project format.
 - **Export and share** artwork as PNG or JPEG.
 - **Modern home screen** with direct access to new drawings and saved projects.
@@ -43,7 +44,7 @@ The project format stores flattened path coordinates and stroke settings. Saving
 ## Current limitations
 
 - Eraser paints white and is intended for the white canvas; it does not erase to transparency.
-- The canvas currently has a white background only.
+- Transparent backgrounds and importing a reference image are not implemented yet.
 - Project paths are flattened when saved, so some curve precision may be lost after reopening.
 - Zoom and pan affect the editor viewport; exports render the drawing at the canvas view's pixel dimensions.
 
