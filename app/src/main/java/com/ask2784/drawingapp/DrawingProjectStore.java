@@ -24,7 +24,7 @@ import java.nio.file.StandardCopyOption;
  */
 public final class DrawingProjectStore {
     private static final int MAGIC = 0x44524157; // DRAW
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private static final int MAX_STROKES = 100_000;
     private static final int MAX_APPROXIMATION_VALUES = 3_000_000;
 
@@ -69,6 +69,7 @@ public final class DrawingProjectStore {
             out.writeInt(MAGIC);
             out.writeInt(VERSION);
             out.writeInt(drawing.getPaintList().size());
+            out.writeInt(drawing.getBackgroundColor());
             for (int i = 0; i < drawing.getPaintList().size(); i++) {
                 SerializePaint paint = drawing.getPaintList().get(i);
                 Path path = drawing.getPathList().get(i);
@@ -116,9 +117,12 @@ public final class DrawingProjectStore {
                 new BufferedInputStream(new FileInputStream(file)))) {
             if (in.readInt() != MAGIC) throw new IOException("This is not a drawing project");
             int version = in.readInt();
-            if (version != VERSION) throw new IOException("Unsupported project version: " + version);
+            if (version < 1 || version > VERSION) {
+                throw new IOException("Unsupported project version: " + version);
+            }
             int count = in.readInt();
             if (count < 0 || count > MAX_STROKES) throw new IOException("Invalid stroke count");
+            int backgroundColor = version >= 2 ? in.readInt() : android.graphics.Color.WHITE;
 
             for (int i = 0; i < count; i++) {
                 int color = in.readInt();
@@ -167,7 +171,9 @@ public final class DrawingProjectStore {
         } catch (IllegalArgumentException error) {
             throw new IOException("Project file contains invalid values", error);
         }
-        return new DrawingData(paints, paths);
+        DrawingData drawing = new DrawingData(paints, paths);
+        drawing.setBackgroundColor(backgroundColor);
+        return drawing;
     }
 
     public static File[] list(File filesDir) throws IOException {
