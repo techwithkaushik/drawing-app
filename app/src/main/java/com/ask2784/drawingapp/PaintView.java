@@ -60,7 +60,8 @@ public class PaintView extends View {
     private boolean isMoving = false;
     private boolean isSelecting = false;
     private boolean isSelect = false;
-    private Paint dashedRectanglePaint;
+    private final Paint dashedRectanglePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path previewPath = new Path();
     private ShapeType shapeType;
     private Canvas mCanvas;
     private boolean isShapeDrawing = false;
@@ -119,6 +120,10 @@ public class PaintView extends View {
         dPaint.setStyle(style);
         dPaint.setStrokeJoin(join);
         dPaint.setStrokeCap(cap);
+        dashedRectanglePaint.setColor(Color.BLACK);
+        dashedRectanglePaint.setStyle(Paint.Style.STROKE);
+        dashedRectanglePaint.setStrokeWidth(2f);
+        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
     }
 
     @SuppressLint("DrawAllocation")
@@ -150,8 +155,8 @@ public class PaintView extends View {
             dPaint.setStrokeJoin(join);
             dPaint.setStrokeCap(cap);
             dPaint.setStyle(style);
-            Path previewPath = buildShapePath(startX, startY, endX, endY);
-            if (previewPath != null) canvas.drawPath(previewPath, dPaint);
+            Path currentPreview = buildShapePath(previewPath, startX, startY, endX, endY);
+            if (currentPreview != null) canvas.drawPath(currentPreview, dPaint);
         }
 
         canvas.restore();
@@ -238,7 +243,11 @@ public class PaintView extends View {
     }
 
     private Path buildShapePath(float x1, float y1, float x2, float y2) {
-        Path path = new Path();
+        return buildShapePath(new Path(), x1, y1, x2, y2);
+    }
+
+    private Path buildShapePath(Path path, float x1, float y1, float x2, float y2) {
+        path.reset();
         switch (shapeType) {
             case LINE:
                 path.moveTo(x1, y1);
@@ -310,11 +319,6 @@ public class PaintView extends View {
     }
 
     private void drawSelectedPathHighlight(Canvas canvas) {
-        dashedRectanglePaint = new Paint();
-        dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
-        dashedRectanglePaint.setStyle(Paint.Style.STROKE);
-        dashedRectanglePaint.setStrokeWidth(2);
-        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
         if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
 
         if (selectedDrawing != null) {
