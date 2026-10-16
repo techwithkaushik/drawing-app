@@ -225,13 +225,11 @@ public class PaintView extends View {
         float right = left + sideLength;
         float bottom = top + sideLength;
         canvas.drawRect(left, top, right, bottom, dPaint);
-        invalidate();
     }
 
     private void drawCircle(Canvas canvas) {
         float radius = (float) Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-        canvas.drawCircle(endX, endY, radius, dPaint);
-        invalidate();
+        canvas.drawCircle(startX, startY, radius, dPaint);
     }
 
     private void drawTriangle(Canvas canvas) {
@@ -546,6 +544,7 @@ public class PaintView extends View {
             selectPathsInArea(selectionAreaPath);
             selectionAreaPath.reset();
             isSelecting = false;
+            isSelect = false;
             isMove = true;
         }
     }
