@@ -67,6 +67,15 @@ public class DrawingActivity extends AppCompatActivity {
                 });
 
         binding.selectPath.setOnClickListener(v -> paintView.startSelect(strokeSize));
+        binding.eraser.setOnClickListener(v -> {
+            boolean enabled = !paintView.isEraserEnabled();
+            paintView.setEraserEnabled(enabled);
+            binding.eraser.setAlpha(enabled ? 0.55f : 1.0f);
+            if (enabled) {
+                paintView.startDrawing();
+                paintView.setEraserEnabled(true);
+            }
+        });
 
         Drawable colorDrawable = binding.setColor.getDrawable();
         colorDrawable.setTint(settings.getInt("paintColor", Color.GREEN));
@@ -140,6 +149,11 @@ public class DrawingActivity extends AppCompatActivity {
                                 public void onNothingSelected(AdapterView<?> arg0) {}
                             });
                     Bitmap bitmap = paintView.exportImage();
+                    if (bitmap == null) {
+                        Toast.makeText(this, "Canvas is not ready yet.", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        return;
+                    }
                     Bitmap.CompressFormat imageFormat =
                             suffix.equals("png")
                                     ? Bitmap.CompressFormat.PNG
