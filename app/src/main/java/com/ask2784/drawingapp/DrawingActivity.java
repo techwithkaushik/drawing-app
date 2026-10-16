@@ -125,6 +125,18 @@ public class DrawingActivity extends AppCompatActivity {
         }
     }
 
+    private void chooseCanvasBackground() {
+        new ColorPickerDialog.Builder(this)
+                .setPreferenceName("backgroundColorPicker")
+                .attachBrightnessSlideBar(true)
+                .setTitle("Canvas Background")
+                .setPositiveButton("Apply", (ColorEnvelopeListener) (envelope, fromUser) ->
+                        paintView.setCanvasBackgroundColor(envelope.getColor() | 0xFF000000))
+                .setNegativeButton("Cancel", null)
+                .create()
+                .show();
+    }
+
     private void exportImage() {
         SaveDrawingBinding saveBinding = SaveDrawingBinding.inflate(getLayoutInflater());
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -276,6 +288,8 @@ public class DrawingActivity extends AppCompatActivity {
         else if (id == R.id.reset_view) {
             paintView.resetViewport();
             Toast.makeText(this, "Canvas view reset.", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.set_background) {
+            chooseCanvasBackground();
         }
         return super.onOptionsItemSelected(item);
     }
