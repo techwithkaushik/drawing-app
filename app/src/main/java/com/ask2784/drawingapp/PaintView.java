@@ -334,6 +334,7 @@ public class PaintView extends View {
     private RangeSlider slider;
 
     public void startSelect(RangeSlider slider) {
+        setEraserEnabled(false);
         isSelect = true;
         isDraw = false;
         selectedDrawing = null;
