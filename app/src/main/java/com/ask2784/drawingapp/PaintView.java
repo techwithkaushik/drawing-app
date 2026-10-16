@@ -105,6 +105,7 @@ public class PaintView extends View {
         shapeType = ShapeType.BRUSH;
         currentStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
         currentColor = settings.getInt("paintColor", Color.GREEN);
+        canvasBackgroundColor = settings.getInt("canvasBackgroundColor", Color.WHITE);
         dPaint = new Paint();
         dPaint.setColor(currentColor);
         dPaint.setAntiAlias(true);
@@ -333,6 +334,7 @@ public class PaintView extends View {
 
     public void setCanvasBackgroundColor(int color) {
         canvasBackgroundColor = color;
+        settings.edit().putInt("canvasBackgroundColor", color).apply();
         if (eraserEnabled) currentColor = color;
         selectedDrawing = null;
         invalidate();
