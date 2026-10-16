@@ -33,5 +33,10 @@
     <item
         android:id="@+id/set_background"
         android:title="Canvas Background" />
+    <item
+        android:id="@+id/fill_shapes"
+        android:title="Fill Shapes"
+        android:checkable="true"
+        android:checked="false" />
 
 </menu>
