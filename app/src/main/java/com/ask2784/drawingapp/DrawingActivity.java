@@ -66,6 +66,7 @@ public class DrawingActivity extends AppCompatActivity {
         binding.draw.setOnClickListener(
                 v -> {
                     paintView.startDrawing();
+                    binding.eraser.setAlpha(1.0f);
                     strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
                 });
 
@@ -108,6 +109,7 @@ public class DrawingActivity extends AppCompatActivity {
                                                         settings.getInt("paintColor", Color.BLACK));
                                             }
                                             paintView.setStrokeColor(envelope.getColor());
+                                            binding.eraser.setAlpha(1.0f);
                                         }
                                     })
                             .setNegativeButton("Cancel", null)
@@ -314,6 +316,7 @@ public class DrawingActivity extends AppCompatActivity {
     private void changeDrawMethod(MenuItem item, ShapeType shape) {
         binding.draw.setImageDrawable(item.getIcon());
         paintView.setDrawMethod(shape);
+        binding.eraser.setAlpha(1.0f);
     }
 
     @Override
