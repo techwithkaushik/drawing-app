@@ -15,6 +15,7 @@ import android.graphics.Region;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
 import android.widget.Toast;
@@ -63,6 +64,13 @@ public class PaintView extends View {
     private ShapeType shapeType;
     private Canvas mCanvas;
     private boolean isShapeDrawing = false;
+    private float canvasScale = 1f;
+    private float canvasOffsetX = 0f;
+    private float canvasOffsetY = 0f;
+    private float lastGestureX = 0f;
+    private float lastGestureY = 0f;
+    private boolean viewportGesture = false;
+    private final ScaleGestureDetector scaleGestureDetector;
     private Paint.Cap cap = Paint.Cap.ROUND;
     private Paint.Join join = Paint.Join.ROUND;
     private Paint.Style style = Paint.Style.STROKE;
@@ -70,6 +78,23 @@ public class PaintView extends View {
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
         gestureDetector = new GestureDetectorCompat(getContext(), new CanvasGestureDetector());
+        scaleGestureDetector = new ScaleGestureDetector(context,
+                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    @Override
+                    public boolean onScale(ScaleGestureDetector detector) {
+                        float oldScale = canvasScale;
+                        float newScale = Math.max(1f, Math.min(5f, oldScale * detector.getScaleFactor()));
+                        float focusX = detector.getFocusX();
+                        float focusY = detector.getFocusY();
+                        float canvasFocusX = (focusX - canvasOffsetX) / oldScale;
+                        float canvasFocusY = (focusY - canvasOffsetY) / oldScale;
+                        canvasScale = newScale;
+                        canvasOffsetX = focusX - canvasFocusX * newScale;
+                        canvasOffsetY = focusY - canvasFocusY * newScale;
+                        invalidate();
+                        return true;
+                    }
+                });
         setupDraw();
     }
 
@@ -91,8 +116,10 @@ public class PaintView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        canvas.save();
         canvas.drawColor(Color.WHITE);
+        canvas.save();
+        canvas.translate(canvasOffsetX, canvasOffsetY);
+        canvas.scale(canvasScale, canvasScale);
 
         drawSelectedPathHighlight(canvas);
 
@@ -520,9 +547,59 @@ public class PaintView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
-        float x = event.getX();
-        float y = event.getY();
-        switch (event.getActionMasked()) {
+        scaleGestureDetector.onTouchEvent(event);
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_POINTER_DOWN) {
+            viewportGesture = true;
+            if (isDraw && mPath != null && !paths.isEmpty() && paths.get(paths.size() - 1) == mPath) {
+                paths.remove(paths.size() - 1);
+                paints.remove(paints.size() - 1);
+                mPath = null;
+                isShapeDrawing = false;
+            }
+            lastGestureX = (event.getX(0) + event.getX(1)) / 2f;
+            lastGestureY = (event.getY(0) + event.getY(1)) / 2f;
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_POINTER_UP) {
+            if (event.getPointerCount() <= 2) {
+                lastGestureX = 0f;
+                lastGestureY = 0f;
+            }
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_MOVE && event.getPointerCount() > 1) {
+            float midX = 0f;
+            float midY = 0f;
+            for (int i = 0; i < event.getPointerCount(); i++) {
+                midX += event.getX(i);
+                midY += event.getY(i);
+            }
+            midX /= event.getPointerCount();
+            midY /= event.getPointerCount();
+            if (lastGestureX != 0f || lastGestureY != 0f) {
+                canvasOffsetX += midX - lastGestureX;
+                canvasOffsetY += midY - lastGestureY;
+            }
+            lastGestureX = midX;
+            lastGestureY = midY;
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_UP && viewportGesture) {
+            viewportGesture = false;
+            lastGestureX = 0f;
+            lastGestureY = 0f;
+            invalidate();
+            return true;
+        }
+        if (viewportGesture && action != MotionEvent.ACTION_DOWN) return true;
+
+        float x = (event.getX() - canvasOffsetX) / canvasScale;
+        float y = (event.getY() - canvasOffsetY) / canvasScale;
+        switch (action) {
             case MotionEvent.ACTION_DOWN:
                 if (isDraw) {
                     startDrawing(x, y);
