@@ -16,6 +16,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.text.InputType;
 import android.widget.Toast;
 
 import androidx.annotation.MainThread;
@@ -32,6 +34,7 @@ import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 
 public class DrawingActivity extends AppCompatActivity {
@@ -291,9 +294,90 @@ public class DrawingActivity extends AppCompatActivity {
         return super.onContextItemSelected(item);
     }
 
-    private void saveProject() {}
+    private void saveProject() {
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        nameInput.setHint("Project name");
+        nameInput.setText(getSupportActionBar() == null ? "My Drawing"
+                : String.valueOf(getSupportActionBar().getTitle()));
+        new AlertDialog.Builder(this)
+                .setTitle("Save project")
+                .setMessage("Your editable strokes will be saved on this device.")
+                .setView(nameInput)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String projectName = DrawingProjectStore.sanitizeName(nameInput.getText().toString());
+                    if (projectName.isEmpty()) {
+                        Toast.makeText(this, "Enter a valid project name.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        File directory = DrawingProjectStore.projectDirectory(getFilesDir());
+                        File target = new File(directory, projectName + ".draw");
+                        if (target.exists()) {
+                            new AlertDialog.Builder(this)
+                                    .setTitle("Replace project?")
+                                    .setMessage(projectName + " already exists. Replace it?")
+                                    .setNegativeButton("Cancel", null)
+                                    .setPositiveButton("Replace", (confirm, choice) -> persistProject(projectName))
+                                    .show();
+                        } else {
+                            persistProject(projectName);
+                        }
+                    } catch (IOException error) {
+                        Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                })
+                .show();
+    }
 
-    private void loadProject() {}
+    private void persistProject(String projectName) {
+        try {
+            DrawingProjectStore.save(getFilesDir(), projectName, paintView.saveProject());
+            fileName = projectName;
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle(projectName);
+            Toast.makeText(this, "Project saved: " + projectName, Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not save project: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void loadProject() {
+        try {
+            File[] projects = DrawingProjectStore.list(getFilesDir());
+            if (projects.length == 0) {
+                Toast.makeText(this, "No saved projects yet.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String[] names = new String[projects.length];
+            for (int i = 0; i < projects.length; i++) {
+                String storedName = projects[i].getName();
+                names[i] = storedName.substring(0, storedName.length() - ".draw".length());
+            }
+            new AlertDialog.Builder(this)
+                    .setTitle("Open project")
+                    .setItems(names, (dialog, index) -> {
+                        try {
+                            DrawingData project = DrawingProjectStore.load(projects[index]);
+                            paintView.loadProject(project);
+                            fileName = names[index];
+                            if (getSupportActionBar() != null) getSupportActionBar().setTitle(fileName);
+                            paintView.startDrawing();
+                            Toast.makeText(this, "Project opened: " + fileName, Toast.LENGTH_SHORT).show();
+                        } catch (IOException error) {
+                            Toast.makeText(this, "Could not open project: " + error.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not list projects: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
 
     @Override
     @MainThread
