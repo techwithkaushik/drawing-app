@@ -30,5 +30,8 @@
     <item
         android:id="@+id/reset_view"
         android:title="Reset Zoom / Pan" />
+    <item
+        android:id="@+id/set_background"
+        android:title="Canvas Background" />
 
 </menu>
