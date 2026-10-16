@@ -25,7 +25,7 @@ jobs:
           test -s gradle/wrapper/gradle-wrapper.jar
           test -s gradle/wrapper/gradle-wrapper.properties
           grep -Fq 'services.gradle.org/distributions/gradle-' gradle/wrapper/gradle-wrapper.properties
-          grep -Fq '-bin.zip' gradle/wrapper/gradle-wrapper.properties
+          grep -Fq -- '-bin.zip' gradle/wrapper/gradle-wrapper.properties
           bash -n ./gradlew
 
   build:
