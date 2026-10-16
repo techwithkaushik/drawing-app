@@ -73,6 +73,17 @@
             <ImageButton
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
+                android:src="@drawable/ic_clear"
+                android:contentDescription="Eraser"
+                android:background="@drawable/btn_circle"
+                android:padding="8dp"
+                android:layout_marginStart="2dp"
+                android:id="@+id/eraser"
+                android:text="eraser" />
+
+            <ImageButton
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
                 android:src="@drawable/ic_brush"
                 android:background="@drawable/btn_circle"
                 android:padding="8dp"
