@@ -267,7 +267,14 @@ public class DrawingActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.undo) paintView.undo();
         else if (id == R.id.redo) paintView.redo();
-        else if (id == R.id.clear_drawing) paintView.clear();
+        else if (id == R.id.clear_drawing) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Clear canvas?")
+                    .setMessage("This removes all strokes from the canvas. You can use Redo to restore them.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Clear", (dialog, which) -> paintView.clear())
+                    .show();
+        }
         else if (id == R.id.export_image) exportImage();
         else if (id == R.id.save_project) saveProject();
         else if (id == R.id.load_project) loadProject();
