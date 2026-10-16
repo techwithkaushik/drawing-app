@@ -39,15 +39,39 @@ public class MainActivity extends AppCompatActivity {
                 String storedName = projects[i].getName();
                 names[i] = storedName.substring(0, storedName.length() - ".draw".length());
             }
-            new AlertDialog.Builder(this)
-                    .setTitle("Open a project")
-                    .setItems(names, (dialog, index) -> {
-                        Intent intent = new Intent(this, DrawingActivity.class);
-                        intent.putExtra("project_name", names[index]);
-                        startActivity(intent);
-                    })
+            final int[] selectedIndex = {0};
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setTitle("Your projects")
+                    .setSingleChoiceItems(names, 0, (whichDialog, which) -> selectedIndex[0] = which)
+                    .setPositiveButton("Open", null)
+                    .setNeutralButton("Delete", null)
                     .setNegativeButton("Cancel", null)
-                    .show();
+                    .create();
+            dialog.setOnShowListener(ignored -> {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                    Intent intent = new Intent(this, DrawingActivity.class);
+                    intent.putExtra("project_name", names[selectedIndex[0]]);
+                    startActivity(intent);
+                    dialog.dismiss();
+                });
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+                    int index = selectedIndex[0];
+                    new AlertDialog.Builder(this)
+                            .setTitle("Delete project?")
+                            .setMessage("Delete \"" + names[index] + "\" from this device? This cannot be undone.")
+                            .setNegativeButton("Cancel", null)
+                            .setPositiveButton("Delete", (confirm, which) -> {
+                                if (projects[index].delete()) {
+                                    Toast.makeText(this, "Project deleted.", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(this, "Could not delete project.", Toast.LENGTH_LONG).show();
+                                }
+                            })
+                            .show();
+                    dialog.dismiss();
+                });
+            });
+            dialog.show();
         } catch (IOException error) {
             Toast.makeText(this, "Could not list projects: " + error.getMessage(),
                     Toast.LENGTH_LONG).show();
