@@ -156,13 +156,24 @@ public class PaintView extends View {
     }
 
     public void loadProject(DrawingData drawingData) {
-        if (!drawingData.getPaintList().isEmpty() && !drawingData.getPathList().isEmpty()) {
-            paints = drawingData.getPaintList();
-            paths = drawingData.getPathList();
-            invalidate();
-        } else {
-            Toast.makeText(getContext(), "Project is Empty", Toast.LENGTH_SHORT).show();
+        if (drawingData == null || drawingData.getPaintList() == null
+                || drawingData.getPathList() == null
+                || drawingData.getPaintList().size() != drawingData.getPathList().size()) {
+            Toast.makeText(getContext(), "Project file is invalid.", Toast.LENGTH_SHORT).show();
+            return;
         }
+        paints = new ArrayList<>(drawingData.getPaintList());
+        paths = new ArrayList<>(drawingData.getPathList());
+        redoPaint.clear();
+        redoPaths.clear();
+        selectedDrawing = null;
+        isSelecting = false;
+        isMoving = false;
+        isMove = false;
+        isSelect = false;
+        isDraw = true;
+        isShapeDrawing = false;
+        invalidate();
     }
 
     private void drawLine(Canvas canvas) {
@@ -302,7 +313,7 @@ public class PaintView extends View {
     }
 
     public void undo() {
-        if (!paths.isEmpty() && !paints.isEmpty()) {
+        if (!paths.isEmpty() && paths.size() == paints.size()) {
             redoPaint.add(paints.remove(paints.size() - 1));
             redoPaths.add(paths.remove(paths.size() - 1));
             invalidate();
@@ -310,7 +321,7 @@ public class PaintView extends View {
     }
 
     public void redo() {
-        if (!redoPaths.isEmpty() && !redoPaint.isEmpty()) {
+        if (!redoPaths.isEmpty() && redoPaths.size() == redoPaint.size()) {
             paints.add(redoPaint.remove(redoPaint.size() - 1));
             paths.add(redoPaths.remove(redoPaths.size() - 1));
             invalidate();
@@ -318,11 +329,9 @@ public class PaintView extends View {
     }
 
     public void clear() {
-        if (!paths.isEmpty() && !paints.isEmpty()) {
-            if (!redoPaths.isEmpty() && !redoPaint.isEmpty()) {
-                redoPaint.clear();
-                redoPaths.clear();
-            }
+        if (!paths.isEmpty() && paths.size() == paints.size()) {
+            redoPaint.clear();
+            redoPaths.clear();
             for (int i = 0; i < paths.size(); i++) {
                 redoPaint.add(paints.get(i));
                 redoPaths.add(paths.get(i));
@@ -357,8 +366,9 @@ public class PaintView extends View {
     }
 
     private void startDrawing(float x, float y) {
-        if (!redoPaths.isEmpty()) {
+        if (!redoPaths.isEmpty() || !redoPaint.isEmpty()) {
             redoPaths.clear();
+            redoPaint.clear();
         }
 
         mPath = new Path();
