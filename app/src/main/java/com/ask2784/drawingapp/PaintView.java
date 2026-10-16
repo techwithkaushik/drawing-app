@@ -224,7 +224,6 @@ public class PaintView extends View {
 
             canvas.drawRect(selectedPathBounds, dashedRectanglePaint);
         }
-        invalidate();
     }
 
     public void startDrawing() {
@@ -290,7 +289,6 @@ public class PaintView extends View {
     public void setStrokeColor(int strokeColor) {
         eraserEnabled = false;
         currentColor = strokeColor;
-        if (selectedDrawing != null) {
         if (selectedDrawing != null) {
             if (selectedDrawing.getPaint().getPosition() >= 0
                     && selectedDrawing.getPaint().getPosition() < paints.size()) {
