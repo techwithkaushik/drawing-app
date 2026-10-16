@@ -27,5 +27,16 @@
     <item
         android:id="@+id/load_project"
         android:title="Load Project" />
+    <item
+        android:id="@+id/reset_view"
+        android:title="Reset Zoom / Pan" />
+    <item
+        android:id="@+id/set_background"
+        android:title="Canvas Background" />
+    <item
+        android:id="@+id/fill_shapes"
+        android:title="Fill Shapes"
+        android:checkable="true"
+        android:checked="false" />
 
 </menu>

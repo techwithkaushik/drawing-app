@@ -1,12 +1,16 @@
 package com.ask2784.drawingapp;
 
+import android.Manifest;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -16,11 +20,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.text.InputType;
 import android.widget.Toast;
 
-import androidx.annotation.MainThread;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.ask2784.drawingapp.databinding.ActivityDrawingBinding;
@@ -32,6 +39,7 @@ import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 
 public class DrawingActivity extends AppCompatActivity {
@@ -41,6 +49,7 @@ public class DrawingActivity extends AppCompatActivity {
     String suffix = "", fileName = "MyDrawing";
     SharedPreferences.Editor editor;
     RangeSlider strokeSize;
+    private static final int REQUEST_WRITE_STORAGE = 301;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,10 +72,16 @@ public class DrawingActivity extends AppCompatActivity {
         binding.draw.setOnClickListener(
                 v -> {
                     paintView.startDrawing();
+                    binding.eraser.setAlpha(1.0f);
                     strokeSize.setValues(settings.getFloat("strokeWidth", 5.0f));
                 });
 
         binding.selectPath.setOnClickListener(v -> paintView.startSelect(strokeSize));
+        binding.eraser.setOnClickListener(v -> {
+            boolean enabled = !paintView.isEraserEnabled();
+            paintView.setEraserEnabled(enabled);
+            binding.eraser.setAlpha(enabled ? 0.55f : 1.0f);
+        });
 
         Drawable colorDrawable = binding.setColor.getDrawable();
         colorDrawable.setTint(settings.getInt("paintColor", Color.GREEN));
@@ -93,22 +108,44 @@ public class DrawingActivity extends AppCompatActivity {
                                         @Override
                                         public void onColorSelected(
                                                 ColorEnvelope envelope, boolean fromUser) {
-                                            if (paintView.isDrawPath()) {
-                                                editor.putInt("paintColor", envelope.getColor());
-                                                editor.apply();
-                                                colorDrawable.setTint(
-                                                        settings.getInt("paintColor", Color.BLACK));
-                                            }
+                                            editor.putInt("paintColor", envelope.getColor());
+                                            editor.apply();
+                                            colorDrawable.setTint(envelope.getColor());
                                             paintView.setStrokeColor(envelope.getColor());
+                                            binding.eraser.setAlpha(1.0f);
                                         }
                                     })
                             .setNegativeButton("Cancel", null)
                             .create()
                             .show();
                 });
+
+        String requestedProject = getIntent().getStringExtra("project_name");
+        if (requestedProject != null && !requestedProject.trim().isEmpty()) {
+            openProjectByName(requestedProject);
+        }
+    }
+
+    private void chooseCanvasBackground() {
+        new ColorPickerDialog.Builder(this)
+                .setPreferenceName("backgroundColorPicker")
+                .attachBrightnessSlideBar(true)
+                .setTitle("Canvas Background")
+                .setPositiveButton("Apply", (ColorEnvelopeListener) (envelope, fromUser) ->
+                        paintView.setCanvasBackgroundColor(envelope.getColor() | 0xFF000000))
+                .setNegativeButton("Cancel", null)
+                .create()
+                .show();
     }
 
     private void exportImage() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_STORAGE);
+            return;
+        }
         SaveDrawingBinding saveBinding = SaveDrawingBinding.inflate(getLayoutInflater());
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Save Drawing")
@@ -140,95 +177,144 @@ public class DrawingActivity extends AppCompatActivity {
                                 public void onNothingSelected(AdapterView<?> arg0) {}
                             });
                     Bitmap bitmap = paintView.exportImage();
-                    Bitmap.CompressFormat imageFormat =
-                            suffix.equals("png")
-                                    ? Bitmap.CompressFormat.PNG
-                                    : Bitmap.CompressFormat.JPEG;
-
-                    fileName = saveBinding.fileName.getText().toString().trim();
+                    if (bitmap == null) {
+                        Toast.makeText(this, "Canvas is not ready yet.", Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        return;
+                    }
+                    dialog.setOnDismissListener(ignored -> {
+                        if (!bitmap.isRecycled()) bitmap.recycle();
+                    });
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                            .setOnClickListener(
-                                    v2 -> {
-                                        if (fileName != null && fileName.length() > 0) {
-
-                                            OutputStream imgOut;
-                                            ContentValues cv = new ContentValues();
-                                            cv.put(
-                                                    MediaStore.Images.Media.DISPLAY_NAME,
-                                                    fileName + "." + suffix);
-                                            cv.put(
-                                                    MediaStore.Images.Media.MIME_TYPE,
-                                                    "image/" + suffix);
-                                            cv.put(
-                                                    MediaStore.Images.Media.RELATIVE_PATH,
-                                                    Environment.DIRECTORY_PICTURES);
-                                            Uri uri =
-                                                    getContentResolver()
-                                                            .insert(
-                                                                    MediaStore.Images.Media
-                                                                            .EXTERNAL_CONTENT_URI,
-                                                                    cv);
-                                            try {
-                                                assert uri != null;
-                                                imgOut = getContentResolver().openOutputStream(uri);
-
-                                                bitmap.compress(imageFormat, 100, imgOut);
-                                                assert imgOut != null;
-                                                imgOut.close();
-                                                Toast.makeText(
-                                                                this,
-                                                                saveBinding
-                                                                                .fileName
-                                                                                .getText()
-                                                                                .toString()
-                                                                        + " Saved",
-                                                                Toast.LENGTH_SHORT)
-                                                        .show();
-                                                dialog.dismiss();
-                                            } catch (Exception err) {
-                                                err.printStackTrace();
-                                            }
-                                        } else {
-                                            Toast.makeText(
-                                                            getApplicationContext(),
-                                                            "FileName is Not Valid.",
-                                                            Toast.LENGTH_SHORT)
-                                                    .show();
-                                        }
-                                    });
+                            .setOnClickListener(v2 -> {
+                                fileName = DrawingProjectStore.sanitizeName(
+                                        saveBinding.fileName.getText().toString());
+                                if (fileName.isEmpty()) {
+                                    Toast.makeText(this, "Enter a valid file name.",
+                                            Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
+                                saveBitmapToGallery(bitmap, fileName, suffix, dialog);
+                            });
                     dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
                             .setOnClickListener(
                                     vs -> {
-                                        fileName = saveBinding.fileName.getText().toString().trim();
+                                        fileName = DrawingProjectStore.sanitizeName(
+                                                saveBinding.fileName.getText().toString());
+                                        if (fileName.isEmpty()) {
+                                            Toast.makeText(this, "Enter a valid file name.",
+                                                    Toast.LENGTH_SHORT).show();
+                                            return;
+                                        }
                                         File imageFolder = new File(getCacheDir(), "images");
                                         Uri uri = null;
                                         try {
-                                            imageFolder.mkdir();
+                                            if (!imageFolder.exists() && !imageFolder.mkdirs()) {
+                                                throw new IOException("Unable to prepare share cache");
+                                            }
                                             File file =
                                                     new File(imageFolder, fileName + "." + suffix);
-                                            FileOutputStream outup = new FileOutputStream(file);
-                                            bitmap.compress(imageFormat, 100, outup);
-                                            outup.flush();
-                                            outup.close();
-                                            uri =
-                                                    FileProvider.getUriForFile(
-                                                            this,
-                                                            "com.ask2784.drawingapp.fileprovider",
-                                                            file);
+                                            Bitmap.CompressFormat imageFormat =
+                                                    "png".equalsIgnoreCase(suffix)
+                                                            ? Bitmap.CompressFormat.PNG
+                                                            : Bitmap.CompressFormat.JPEG;
+                                            try (FileOutputStream output = new FileOutputStream(file)) {
+                                                if (!bitmap.compress(imageFormat, 100, output)) {
+                                                    throw new IOException("Image encoding failed");
+                                                }
+                                                output.flush();
+                                            }
+                                            uri = FileProvider.getUriForFile(
+                                                    this, "com.ask2784.drawingapp.fileprovider", file);
                                             Intent intent = new Intent(Intent.ACTION_SEND);
+                                            intent.setType("png".equalsIgnoreCase(suffix)
+                                                    ? "image/png" : "image/jpeg");
                                             intent.putExtra(Intent.EXTRA_STREAM, uri);
-                                            intent.setType(
-                                                    suffix.equals("png")
-                                                            ? "image/png"
-                                                            : "image/jpeg");
-                                            startActivity(
-                                                    Intent.createChooser(intent, "Share image"));
+                                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                            startActivity(Intent.createChooser(intent, "Share image"));
                                         } catch (Exception err) {
-                                            err.printStackTrace();
+                                            Toast.makeText(this, "Could not share image: "
+                                                    + err.getMessage(), Toast.LENGTH_LONG).show();
                                         }
                                     });
                 });
         dialog.show();
+    }
+
+    private void saveBitmapToGallery(Bitmap bitmap, String outputName, String outputSuffix,
+            AlertDialog dialog) {
+        String mimeType = "png".equalsIgnoreCase(outputSuffix) ? "image/png" : "image/jpeg";
+        Bitmap.CompressFormat format = "png".equalsIgnoreCase(outputSuffix)
+                ? Bitmap.CompressFormat.PNG : Bitmap.CompressFormat.JPEG;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, outputName + "." + outputSuffix);
+            values.put(MediaStore.Images.Media.MIME_TYPE, mimeType);
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/Lets Draw");
+            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+            Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                Toast.makeText(this, "Could not create image file.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                if (output == null) throw new IOException("Unable to open output stream");
+                if (!bitmap.compress(format, 100, output)) {
+                    throw new IOException("Image encoding failed");
+                }
+                ContentValues published = new ContentValues();
+                published.put(MediaStore.Images.Media.IS_PENDING, 0);
+                int updated = getContentResolver().update(uri, published, null, null);
+                if (updated <= 0) throw new IOException("Could not publish saved image");
+                Toast.makeText(this, outputName + " saved to Pictures/Lets Draw.",
+                        Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+            } catch (Exception error) {
+                getContentResolver().delete(uri, null, null);
+                Toast.makeText(this, "Could not save image: " + error.getMessage(),
+                        Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        File pictureFolder = new File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                "Lets Draw");
+        File outputFile = new File(pictureFolder, outputName + "." + outputSuffix);
+        try {
+            if (!pictureFolder.isDirectory() && !pictureFolder.mkdirs()) {
+                throw new IOException("Could not create Pictures/Lets Draw");
+            }
+            try (FileOutputStream output = new FileOutputStream(outputFile)) {
+                if (!bitmap.compress(format, 100, output)) {
+                    throw new IOException("Image encoding failed");
+                }
+            }
+            MediaScannerConnection.scanFile(this, new String[] {outputFile.getAbsolutePath()},
+                    new String[] {mimeType}, null);
+            Toast.makeText(this, outputName + " saved to Pictures/Lets Draw.",
+                    Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        } catch (Exception error) {
+            //noinspection ResultOfMethodCallIgnored
+            outputFile.delete();
+            Toast.makeText(this, "Could not save image: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_WRITE_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                exportImage();
+            } else {
+                Toast.makeText(this, "Storage permission is needed to export images on this Android version.",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     @Override
@@ -242,10 +328,34 @@ public class DrawingActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.undo) paintView.undo();
         else if (id == R.id.redo) paintView.redo();
-        else if (id == R.id.clear_drawing) paintView.clear();
+        else if (id == R.id.clear_drawing) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Clear canvas?")
+                    .setMessage("This removes all strokes from the canvas. You can use Redo to restore them.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Clear", (dialog, which) -> paintView.clear())
+                    .show();
+        }
         else if (id == R.id.export_image) exportImage();
         else if (id == R.id.save_project) saveProject();
         else if (id == R.id.load_project) loadProject();
+        else if (id == R.id.reset_view) {
+            paintView.resetViewport();
+            Toast.makeText(this, "Canvas view reset.", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.set_background) {
+            chooseCanvasBackground();
+        } else if (id == R.id.fill_shapes) {
+            boolean enabled = !item.isChecked();
+            item.setChecked(enabled);
+            paintView.setFillShapes(enabled);
+            Toast.makeText(this, enabled ? "Shape fill enabled." : "Shape outline enabled.",
+                    Toast.LENGTH_SHORT).show();
+        }
+        if (id == R.id.undo || id == R.id.redo || id == R.id.clear_drawing
+                || id == R.id.export_image || id == R.id.save_project || id == R.id.load_project
+                || id == R.id.reset_view || id == R.id.set_background || id == R.id.fill_shapes) {
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -260,6 +370,7 @@ public class DrawingActivity extends AppCompatActivity {
     private void changeDrawMethod(MenuItem item, ShapeType shape) {
         binding.draw.setImageDrawable(item.getIcon());
         paintView.setDrawMethod(shape);
+        binding.eraser.setAlpha(1.0f);
     }
 
     @Override
@@ -271,23 +382,115 @@ public class DrawingActivity extends AppCompatActivity {
         else if (id == R.id.square) changeDrawMethod(item, ShapeType.SQUARE);
         else if (id == R.id.triangle) changeDrawMethod(item, ShapeType.TRIANGLE);
         else if (id == R.id.circle) changeDrawMethod(item, ShapeType.CIRCLE);
+        if (id == R.id.brush || id == R.id.line || id == R.id.rectangle || id == R.id.square
+                || id == R.id.triangle || id == R.id.circle) return true;
         return super.onContextItemSelected(item);
     }
 
-    private void saveProject() {}
+    private void saveProject() {
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        nameInput.setHint("Project name");
+        nameInput.setText(getSupportActionBar() == null ? "My Drawing"
+                : String.valueOf(getSupportActionBar().getTitle()));
+        new AlertDialog.Builder(this)
+                .setTitle("Save project")
+                .setMessage("Your editable strokes will be saved on this device.")
+                .setView(nameInput)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String projectName = DrawingProjectStore.sanitizeName(nameInput.getText().toString());
+                    if (projectName.isEmpty()) {
+                        Toast.makeText(this, "Enter a valid project name.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        File directory = DrawingProjectStore.projectDirectory(getFilesDir());
+                        File target = new File(directory, projectName + ".draw");
+                        if (target.exists()) {
+                            new AlertDialog.Builder(this)
+                                    .setTitle("Replace project?")
+                                    .setMessage(projectName + " already exists. Replace it?")
+                                    .setNegativeButton("Cancel", null)
+                                    .setPositiveButton("Replace", (confirm, choice) -> persistProject(projectName))
+                                    .show();
+                        } else {
+                            persistProject(projectName);
+                        }
+                    } catch (IOException error) {
+                        Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                })
+                .show();
+    }
 
-    private void loadProject() {}
+    private void openProjectByName(String projectName) {
+        try {
+            File file = new File(DrawingProjectStore.projectDirectory(getFilesDir()),
+                    DrawingProjectStore.sanitizeName(projectName) + ".draw");
+            if (!file.isFile()) {
+                Toast.makeText(this, "Project no longer exists.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            DrawingData project = DrawingProjectStore.load(file);
+            paintView.loadProject(project);
+            fileName = projectName;
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle(fileName);
+            paintView.startDrawing();
+            Toast.makeText(this, "Project opened: " + fileName, Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not open project: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
 
-    @Override
-    @MainThread
-    public void onBackPressed() {
-        super.onBackPressed();
-        this.binding = null;
+    private void persistProject(String projectName) {
+        try {
+            DrawingProjectStore.save(getFilesDir(), projectName, paintView.saveProject());
+            fileName = projectName;
+            if (getSupportActionBar() != null) getSupportActionBar().setTitle(projectName);
+            Toast.makeText(this, "Project saved: " + projectName, Toast.LENGTH_SHORT).show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not save project: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void loadProject() {
+        try {
+            File[] projects = DrawingProjectStore.list(getFilesDir());
+            if (projects.length == 0) {
+                Toast.makeText(this, "No saved projects yet.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String[] names = new String[projects.length];
+            for (int i = 0; i < projects.length; i++) {
+                String storedName = projects[i].getName();
+                names[i] = storedName.substring(0, storedName.length() - ".draw".length());
+            }
+            new AlertDialog.Builder(this)
+                    .setTitle("Open project")
+                    .setItems(names, (dialog, index) -> {
+                        openProjectByName(names[index]);
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } catch (IOException error) {
+            Toast.makeText(this, "Could not list projects: " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
     public boolean onSupportNavigateUp() {
-        onBackPressed();
+        finish();
         return true;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        binding = null;
     }
 }

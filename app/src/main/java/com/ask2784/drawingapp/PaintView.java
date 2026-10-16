@@ -11,10 +11,10 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
-import android.graphics.Region;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
 import android.widget.Toast;
@@ -49,6 +49,9 @@ public class PaintView extends View {
     // private SerializePath mPath, selectionAreaPath;
     private Path mPath, selectionAreaPath;
     private int currentColor;
+    private int canvasBackgroundColor = Color.WHITE;
+    private int colorBeforeEraser = Color.GREEN;
+    private boolean eraserEnabled = false;
     private float currentStrokeWidth = 5;
     private Bitmap bitmap;
     private DrawingData selectedDrawing = null;
@@ -57,24 +60,58 @@ public class PaintView extends View {
     private boolean isMoving = false;
     private boolean isSelecting = false;
     private boolean isSelect = false;
-    private Paint dashedRectanglePaint;
+    private final Paint dashedRectanglePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path previewPath = new Path();
     private ShapeType shapeType;
     private Canvas mCanvas;
     private boolean isShapeDrawing = false;
+    private float canvasScale = 1f;
+    private float canvasOffsetX = 0f;
+    private float canvasOffsetY = 0f;
+    private float lastGestureX = 0f;
+    private float lastGestureY = 0f;
+    private float lastMoveX = 0f;
+    private float lastMoveY = 0f;
+    private boolean viewportGesture = false;
+    private final ScaleGestureDetector scaleGestureDetector;
     private Paint.Cap cap = Paint.Cap.ROUND;
     private Paint.Join join = Paint.Join.ROUND;
     private Paint.Style style = Paint.Style.STROKE;
+    private boolean fillShapes = false;
 
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
         gestureDetector = new GestureDetectorCompat(getContext(), new CanvasGestureDetector());
+        scaleGestureDetector = new ScaleGestureDetector(context,
+                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    @Override
+                    public boolean onScale(ScaleGestureDetector detector) {
+                        float oldScale = canvasScale;
+                        float newScale = Math.max(0.5f, Math.min(5f, oldScale * detector.getScaleFactor()));
+                        float focusX = detector.getFocusX();
+                        float focusY = detector.getFocusY();
+                        float canvasFocusX = (focusX - canvasOffsetX) / oldScale;
+                        float canvasFocusY = (focusY - canvasOffsetY) / oldScale;
+                        canvasScale = newScale;
+                        canvasOffsetX = focusX - canvasFocusX * newScale;
+                        canvasOffsetY = focusY - canvasFocusY * newScale;
+                        invalidate();
+                        return true;
+                    }
+                });
         setupDraw();
     }
 
     private void setupDraw() {
         shapeType = ShapeType.BRUSH;
-        currentStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
+        float savedStrokeWidth = settings.getFloat("strokeWidth", 5.0f);
+        if (!Float.isFinite(savedStrokeWidth) || savedStrokeWidth < 0.5f || savedStrokeWidth > 50f) {
+            savedStrokeWidth = 5.0f;
+            settings.edit().putFloat("strokeWidth", savedStrokeWidth).apply();
+        }
+        currentStrokeWidth = savedStrokeWidth;
         currentColor = settings.getInt("paintColor", Color.GREEN);
+        canvasBackgroundColor = settings.getInt("canvasBackgroundColor", Color.WHITE) | 0xFF000000;
         dPaint = new Paint();
         dPaint.setColor(currentColor);
         dPaint.setAntiAlias(true);
@@ -83,98 +120,177 @@ public class PaintView extends View {
         dPaint.setStyle(style);
         dPaint.setStrokeJoin(join);
         dPaint.setStrokeCap(cap);
+        dashedRectanglePaint.setColor(Color.BLACK);
+        dashedRectanglePaint.setStyle(Paint.Style.STROKE);
+        dashedRectanglePaint.setStrokeWidth(2f);
+        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
     }
 
     @SuppressLint("DrawAllocation")
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        canvas.drawColor(canvasBackgroundColor);
         canvas.save();
-        canvas.drawColor(Color.WHITE);
+        canvas.translate(canvasOffsetX, canvasOffsetY);
+        canvas.scale(canvasScale, canvasScale);
 
-        drawSelectedPathHighlight(canvas);
-
-        bitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_8888);
-        mCanvas = new Canvas(bitmap);
-        mCanvas.drawColor(Color.WHITE);
-        for (int i = 0; i < paints.size(); i++) {
-            dPaint.setColor(paints.get(i).getColor());
-            dPaint.setStrokeWidth(paints.get(i).getStrokeWidth());
-            dPaint.setStrokeJoin(paints.get(i).getJoin());
-            dPaint.setStrokeCap(paints.get(i).getCap());
-            dPaint.setStyle(paints.get(i).getStyle());
+        for (int i = 0; i < paints.size() && i < paths.size(); i++) {
+            SerializePaint stroke = paints.get(i);
+            dPaint.setColor(stroke.getColor());
+            dPaint.setStrokeWidth(stroke.getStrokeWidth());
+            dPaint.setStrokeJoin(stroke.getJoin());
+            dPaint.setStrokeCap(stroke.getCap());
+            dPaint.setStyle(stroke.getStyle());
             canvas.drawPath(paths.get(i), dPaint);
-            mCanvas.drawPath(paths.get(i), dPaint);
         }
 
+        // Draw selection overlays last so they remain visible over the selected stroke.
+        drawSelectedPathHighlight(canvas);
+
         if (isShapeDrawing) {
-            switch (shapeType) {
-                case LINE:
-                    drawLine(canvas);
-                    break;
-                case RECTANGLE:
-                    drawRectangle(canvas);
-                    break;
-                case SQUARE:
-                    drawSquare(canvas);
-                    break;
-                case CIRCLE:
-                    drawCircle(canvas);
-                    break;
-                case TRIANGLE:
-                    drawTriangle(canvas);
-                    break;
-            }
+            // Preview must use the current tool settings, not the last saved stroke's paint.
+            dPaint.setColor(currentColor);
+            dPaint.setStrokeWidth(currentStrokeWidth);
+            dPaint.setStrokeJoin(join);
+            dPaint.setStrokeCap(cap);
+            dPaint.setStyle(style);
+            Path currentPreview = buildShapePath(previewPath, startX, startY, endX, endY);
+            if (currentPreview != null) canvas.drawPath(currentPreview, dPaint);
         }
 
         canvas.restore();
     }
 
     public void setDrawMethod(ShapeType shapeType) {
-        this.shapeType = shapeType;
-        switch (shapeType) {
+        setEraserEnabled(false);
+        this.shapeType = shapeType == null ? ShapeType.BRUSH : shapeType;
+        isShapeDrawing = false;
+        isDraw = true;
+        isSelect = false;
+        isMove = false;
+        isSelecting = false;
+        isMoving = false;
+        selectedDrawing = null;
+        mPath = null;
+        switch (this.shapeType) {
             case LINE:
             case BRUSH:
             case CIRCLE:
                 join = Paint.Join.ROUND;
                 cap = Paint.Cap.ROUND;
-                style = Paint.Style.STROKE;
                 break;
             case RECTANGLE:
             case SQUARE:
             case TRIANGLE:
                 join = Paint.Join.MITER;
                 cap = Paint.Cap.BUTT;
-                style = Paint.Style.STROKE;
                 break;
         }
+        style = fillShapes && shapeType != ShapeType.BRUSH && shapeType != ShapeType.LINE
+                ? Paint.Style.FILL : Paint.Style.STROKE;
+        dPaint.setStrokeJoin(join);
+        dPaint.setStrokeCap(cap);
+        dPaint.setStyle(style);
+        invalidate();
+    }
+
+    public void setFillShapes(boolean enabled) {
+        fillShapes = enabled;
+        setDrawMethod(shapeType);
+    }
+
+    public boolean areShapesFilled() {
+        return fillShapes;
     }
 
     public DrawingData saveProject() {
         DrawingData data = new DrawingData();
-        data.setPaintList(paints);
-        data.setPathList(paths);
+        data.setPaintList(new ArrayList<>(paints));
+        data.setPathList(new ArrayList<>(paths));
+        data.setBackgroundColor(canvasBackgroundColor);
         return data;
     }
 
     public void loadProject(DrawingData drawingData) {
-        if (!drawingData.getPaintList().isEmpty() && !drawingData.getPathList().isEmpty()) {
-            paints = drawingData.getPaintList();
-            paths = drawingData.getPathList();
-            invalidate();
-        } else {
-            Toast.makeText(getContext(), "Project is Empty", Toast.LENGTH_SHORT).show();
+        if (drawingData == null || drawingData.getPaintList() == null
+                || drawingData.getPathList() == null
+                || drawingData.getPaintList().size() != drawingData.getPathList().size()) {
+            Toast.makeText(getContext(), "Project file is invalid.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        for (int i = 0; i < drawingData.getPaintList().size(); i++) {
+            if (drawingData.getPaintList().get(i) == null || drawingData.getPathList().get(i) == null) {
+                Toast.makeText(getContext(), "Project file is invalid.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        paints = new ArrayList<>(drawingData.getPaintList());
+        paths = new ArrayList<>(drawingData.getPathList());
+        canvasBackgroundColor = drawingData.getBackgroundColor() | 0xFF000000;
+        settings.edit().putInt("canvasBackgroundColor", canvasBackgroundColor).apply();
+        if (eraserEnabled) currentColor = canvasBackgroundColor;
+        redoPaint.clear();
+        redoPaths.clear();
+        selectedDrawing = null;
+        isSelecting = false;
+        isMoving = false;
+        isMove = false;
+        isSelect = false;
+        isDraw = true;
+        isShapeDrawing = false;
+        invalidate();
+    }
+
+    private Path buildShapePath(float x1, float y1, float x2, float y2) {
+        return buildShapePath(new Path(), x1, y1, x2, y2);
+    }
+
+    private Path buildShapePath(Path path, float x1, float y1, float x2, float y2) {
+        path.reset();
+        switch (shapeType) {
+            case LINE:
+                path.moveTo(x1, y1);
+                path.lineTo(x2, y2);
+                return path;
+            case RECTANGLE:
+                path.addRect(Math.min(x1, x2), Math.min(y1, y2),
+                        Math.max(x1, x2), Math.max(y1, y2), Path.Direction.CW);
+                return path;
+            case SQUARE: {
+                float dx = x2 - x1;
+                float dy = y2 - y1;
+                float side = Math.min(Math.abs(dx), Math.abs(dy));
+                float right = x1 + Math.copySign(side, dx == 0f ? 1f : dx);
+                float bottom = y1 + Math.copySign(side, dy == 0f ? 1f : dy);
+                path.addRect(Math.min(x1, right), Math.min(y1, bottom),
+                        Math.max(x1, right), Math.max(y1, bottom), Path.Direction.CW);
+                return path;
+            }
+            case CIRCLE: {
+                float radius = (float) Math.hypot(x2 - x1, y2 - y1);
+                path.addCircle(x1, y1, radius, Path.Direction.CW);
+                return path;
+            }
+            case TRIANGLE:
+                path.moveTo(x1, y1);
+                path.lineTo(x2, y2);
+                path.lineTo(x1 - (x2 - x1), y2);
+                path.close();
+                return path;
+            case BRUSH:
+            default:
+                return null;
         }
     }
 
     private void drawLine(Canvas canvas) {
         canvas.drawLine(startX, startY, endX, endY, dPaint);
-        invalidate();
     }
 
     private void drawRectangle(Canvas canvas) {
-        canvas.drawRect(startX, startY, endX, endY, dPaint);
-        invalidate();
+        canvas.drawRect(Math.min(startX, endX), Math.min(startY, endY),
+                Math.max(startX, endX), Math.max(startY, endY), dPaint);
     }
 
     private void drawSquare(Canvas canvas) {
@@ -186,13 +302,11 @@ public class PaintView extends View {
         float right = left + sideLength;
         float bottom = top + sideLength;
         canvas.drawRect(left, top, right, bottom, dPaint);
-        invalidate();
     }
 
     private void drawCircle(Canvas canvas) {
         float radius = (float) Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-        canvas.drawCircle(endX, endY, radius, dPaint);
-        invalidate();
+        canvas.drawCircle(startX, startY, radius, dPaint);
     }
 
     private void drawTriangle(Canvas canvas) {
@@ -206,49 +320,38 @@ public class PaintView extends View {
 
     private void drawSelectedPathHighlight(Canvas canvas) {
         if (isSelecting) canvas.drawRect(startX, startY, endX, endY, dashedRectanglePaint);
-        dashedRectanglePaint = new Paint();
-        dashedRectanglePaint.setColor(Color.BLACK); // Set the color as needed
-        dashedRectanglePaint.setStyle(Paint.Style.STROKE);
-        dashedRectanglePaint.setStrokeWidth(2);
-        dashedRectanglePaint.setPathEffect(new DashPathEffect(new float[] {10, 5}, 0));
 
         if (selectedDrawing != null) {
-            Region r = new Region();
             RectF selectedPathBounds = getExpandedBounds(selectedDrawing);
-            // selectedPath.path.computeBounds(selectedPathBounds, true);
-            r.setPath(
-                    selectedDrawing.getPath(),
-                    new Region(
-                            (int) (selectedPathBounds.left),
-                            (int) (selectedPathBounds.top),
-                            (int) (selectedPathBounds.right),
-                            (int) (selectedPathBounds.bottom)));
-
             canvas.drawRect(selectedPathBounds, dashedRectanglePaint);
         }
-        invalidate();
     }
 
     public void startDrawing() {
-        if (!isDraw) {
-            isDraw = true;
-            isMove = false;
-            selectedDrawing = null;
-            isSelecting = false;
-            isSelect = false;
-        }
+        setEraserEnabled(false);
+        isDraw = true;
+        isMove = false;
+        isMoving = false;
+        selectedDrawing = null;
+        isSelecting = false;
+        isSelect = false;
+        isShapeDrawing = false;
+        mPath = null;
+        invalidate();
     }
 
     private RangeSlider slider;
 
     public void startSelect(RangeSlider slider) {
-        if (!isSelect) {
-            isSelect = true;
-            isDraw = false;
-            selectedDrawing = null;
-            isMove = false;
-            this.slider = slider;
-        }
+        setEraserEnabled(false);
+        isSelect = true;
+        isDraw = false;
+        selectedDrawing = null;
+        isMoving = false;
+        isMove = false;
+        isSelecting = false;
+        this.slider = slider;
+        invalidate();
     }
 
     public DrawingData getSelectedDrawing() {
@@ -272,7 +375,45 @@ public class PaintView extends View {
         return isDraw;
     }
 
+    public void setEraserEnabled(boolean enabled) {
+        if (enabled == eraserEnabled) return;
+        if (enabled) {
+            colorBeforeEraser = currentColor;
+            currentColor = canvasBackgroundColor;
+        } else {
+            currentColor = colorBeforeEraser;
+        }
+        eraserEnabled = enabled;
+        selectedDrawing = null;
+        isDraw = true;
+        isSelect = false;
+        isMove = false;
+        isSelecting = false;
+        isMoving = false;
+        mPath = null;
+        isShapeDrawing = false;
+        invalidate();
+    }
+
+    public boolean isEraserEnabled() {
+        return eraserEnabled;
+    }
+
+    public void setCanvasBackgroundColor(int color) {
+        canvasBackgroundColor = color | 0xFF000000;
+        settings.edit().putInt("canvasBackgroundColor", canvasBackgroundColor).apply();
+        if (eraserEnabled) currentColor = canvasBackgroundColor;
+        selectedDrawing = null;
+        invalidate();
+    }
+
+    public int getCanvasBackgroundColor() {
+        return canvasBackgroundColor;
+    }
+
     public void setStrokeColor(int strokeColor) {
+        eraserEnabled = false;
+        currentColor = strokeColor;
         if (selectedDrawing != null) {
             if (selectedDrawing.getPaint().getPosition() >= 0
                     && selectedDrawing.getPaint().getPosition() < paints.size()) {
@@ -285,45 +426,79 @@ public class PaintView extends View {
     }
 
     public void undo() {
-        if (!paths.isEmpty() && !paints.isEmpty()) {
+        if (!paths.isEmpty() && paths.size() == paints.size()) {
             redoPaint.add(paints.remove(paints.size() - 1));
             redoPaths.add(paths.remove(paths.size() - 1));
+            selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
             invalidate();
         }
     }
 
     public void redo() {
-        if (!redoPaths.isEmpty() && !redoPaint.isEmpty()) {
+        if (!redoPaths.isEmpty() && redoPaths.size() == redoPaint.size()) {
             paints.add(redoPaint.remove(redoPaint.size() - 1));
             paths.add(redoPaths.remove(redoPaths.size() - 1));
+            selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
             invalidate();
         }
     }
 
     public void clear() {
-        if (!paths.isEmpty() && !paints.isEmpty()) {
-            if (!redoPaths.isEmpty() && !redoPaint.isEmpty()) {
-                redoPaint.clear();
-                redoPaths.clear();
-            }
-            for (int i = 0; i < paths.size(); i++) {
+        if (!paths.isEmpty() && paths.size() == paints.size()) {
+            redoPaint.clear();
+            redoPaths.clear();
+            for (int i = paths.size() - 1; i >= 0; i--) {
                 redoPaint.add(paints.get(i));
                 redoPaths.add(paths.get(i));
             }
             paints.clear();
             paths.clear();
             selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
+            isShapeDrawing = false;
+            mPath = null;
             invalidate();
         }
     }
 
+    public void resetViewport() {
+        canvasScale = 1f;
+        canvasOffsetX = 0f;
+        canvasOffsetY = 0f;
+        invalidate();
+    }
+
     public Bitmap exportImage() {
-        return bitmap;
+        int width = getWidth();
+        int height = getHeight();
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+        Bitmap result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas exportCanvas = new Canvas(result);
+        exportCanvas.drawColor(canvasBackgroundColor);
+        Paint exportPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+        for (int i = 0; i < paints.size() && i < paths.size(); i++) {
+            SerializePaint stroke = paints.get(i);
+            exportPaint.setColor(stroke.getColor());
+            exportPaint.setStrokeWidth(stroke.getStrokeWidth());
+            exportPaint.setStrokeJoin(stroke.getJoin());
+            exportPaint.setStrokeCap(stroke.getCap());
+            exportPaint.setStyle(stroke.getStyle());
+            exportCanvas.drawPath(paths.get(i), exportPaint);
+        }
+        return result;
     }
 
     private void startDrawing(float x, float y) {
-        if (!redoPaths.isEmpty()) {
+        if (!redoPaths.isEmpty() || !redoPaint.isEmpty()) {
             redoPaths.clear();
+            redoPaint.clear();
         }
 
         mPath = new Path();
@@ -354,48 +529,18 @@ public class PaintView extends View {
     }
 
     private void endDrawing(float x, float y) {
+        if (mPath == null) return;
         if (shapeType == ShapeType.BRUSH) {
-            mPath.lineTo(endX, endY);
+            // Include the final touch coordinate so fast short strokes are not clipped.
+            mPath.lineTo(x, y);
         } else {
-            switch (shapeType) {
-                case LINE:
-                    mPath.lineTo(endX, endY);
-                    break;
-                case BRUSH:
-                    break;
-                case RECTANGLE:
-                    mPath.addRect(startX, startY, x, y, Path.Direction.CW);
-                    mPath.addRect(x, y, startX, startY, Path.Direction.CW);
-                    mPath.addRect(x, startY, startX, y, Path.Direction.CW);
-                    mPath.addRect(startX, y, x, startY, Path.Direction.CW);
-                    break;
-                case SQUARE:
-                    float dx = Math.abs(x - startX);
-                    float dy = Math.abs(y - startY);
-                    float sideLength = Math.min(dx, dy);
-                    float left = Math.min(startX, x);
-                    float top = Math.min(startY, y);
-                    float right = left + sideLength;
-                    float bottom = top + sideLength;
-                    mPath.addRect(left, top, right, bottom, Path.Direction.CW);
-                    break;
-                case CIRCLE:
-                    float radius =
-                            (float) Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
-                    mPath.addCircle(endX, endY, radius, Path.Direction.CW);
-                    break;
-                case TRIANGLE:
-                    // Draw a triangle (you can customize the triangle logic)
-                    Path trianglePath = new Path();
-                    trianglePath.moveTo(startX, startY);
-                    trianglePath.lineTo(endX, endY);
-                    trianglePath.lineTo(startX + (startX - endX), endY);
-                    trianglePath.close();
-                    mPath.addPath(trianglePath);
-                    break;
-            }
-            isShapeDrawing = false;
+            Path shapePath = buildShapePath(startX, startY, x, y);
+            if (shapePath != null) mPath.addPath(shapePath);
         }
+        endX = x;
+        endY = y;
+        isShapeDrawing = false;
+        mPath = null;
     }
 
     private RectF getExpandedBounds(DrawingData drawingData) {
@@ -415,10 +560,12 @@ public class PaintView extends View {
 
     private void startPathMoving(float x, float y) {
         if (selectedDrawing != null) {
-            selectedDrawing.getPath().computeBounds(expandedBounds, true);
+            expandedBounds.set(getExpandedBounds(selectedDrawing));
             if (expandedBounds.contains(x, y)) {
                 isMoving = true;
                 isSelecting = false;
+                lastMoveX = x;
+                lastMoveY = y;
             }
         }
     }
@@ -426,13 +573,14 @@ public class PaintView extends View {
     private void movePathMoving(float x, float y) {
 
         if (selectedDrawing != null && isMoving) {
-            float offsetX = x - expandedBounds.centerX();
-            float offsetY = y - expandedBounds.centerY();
+            float offsetX = x - lastMoveX;
+            float offsetY = y - lastMoveY;
             Matrix translateMatrix = new Matrix();
-
             translateMatrix.setTranslate(offsetX, offsetY);
             selectedDrawing.getPath().transform(translateMatrix);
             expandedBounds.offset(offsetX, offsetY);
+            lastMoveX = x;
+            lastMoveY = y;
         }
     }
 
@@ -467,6 +615,7 @@ public class PaintView extends View {
             selectPathsInArea(selectionAreaPath);
             selectionAreaPath.reset();
             isSelecting = false;
+            isSelect = false;
             isMove = true;
         }
     }
@@ -475,9 +624,76 @@ public class PaintView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
-        float x = event.getX();
-        float y = event.getY();
-        switch (event.getActionMasked()) {
+        scaleGestureDetector.onTouchEvent(event);
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_CANCEL) {
+            if (isDraw && mPath != null && !paths.isEmpty()
+                    && paths.get(paths.size() - 1) == mPath) {
+                paths.remove(paths.size() - 1);
+                paints.remove(paints.size() - 1);
+            }
+            mPath = null;
+            isShapeDrawing = false;
+            isSelecting = false;
+            isMoving = false;
+            viewportGesture = false;
+            lastGestureX = 0f;
+            lastGestureY = 0f;
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_POINTER_DOWN) {
+            viewportGesture = true;
+            if (isDraw && mPath != null && !paths.isEmpty() && paths.get(paths.size() - 1) == mPath) {
+                paths.remove(paths.size() - 1);
+                paints.remove(paints.size() - 1);
+                mPath = null;
+                isShapeDrawing = false;
+            }
+            lastGestureX = (event.getX(0) + event.getX(1)) / 2f;
+            lastGestureY = (event.getY(0) + event.getY(1)) / 2f;
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_POINTER_UP) {
+            if (event.getPointerCount() <= 2) {
+                lastGestureX = 0f;
+                lastGestureY = 0f;
+            }
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_MOVE && event.getPointerCount() > 1) {
+            float midX = 0f;
+            float midY = 0f;
+            for (int i = 0; i < event.getPointerCount(); i++) {
+                midX += event.getX(i);
+                midY += event.getY(i);
+            }
+            midX /= event.getPointerCount();
+            midY /= event.getPointerCount();
+            if (!scaleGestureDetector.isInProgress()
+                    && (lastGestureX != 0f || lastGestureY != 0f)) {
+                canvasOffsetX += midX - lastGestureX;
+                canvasOffsetY += midY - lastGestureY;
+            }
+            lastGestureX = midX;
+            lastGestureY = midY;
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_UP && viewportGesture) {
+            viewportGesture = false;
+            lastGestureX = 0f;
+            lastGestureY = 0f;
+            invalidate();
+            return true;
+        }
+        if (viewportGesture && action != MotionEvent.ACTION_DOWN) return true;
+
+        float x = (event.getX() - canvasOffsetX) / canvasScale;
+        float y = (event.getY() - canvasOffsetY) / canvasScale;
+        switch (action) {
             case MotionEvent.ACTION_DOWN:
                 if (isDraw) {
                     startDrawing(x, y);
@@ -523,41 +739,32 @@ public class PaintView extends View {
     }
 
     private void selectPathsInArea(Path selectionArea) {
-        if (selectedDrawing != null) selectedDrawing = null;
-        for (int i = 0; i < paths.size(); i++) {
-            DrawingData drawingData = new DrawingData(paints.get(i), paths.get(i));
-            // Simplified check for intersection with the selection area
-            if (isPathIntersectingArea(drawingData, selectionArea)) {
-                drawingData.getPaint().setPosition(i);
-                selectedDrawing = drawingData;
-                slider.setValues(selectedDrawing.getPaint().getStrokeWidth());
+        selectedDrawing = null;
+        if (selectionArea == null || slider == null) return;
+        // Select the top-most stroke in the drag rectangle, matching drawing z-order.
+        for (int i = paths.size() - 1; i >= 0; i--) {
+            DrawingData candidate = new DrawingData(paints.get(i), paths.get(i));
+            if (isPathIntersectingArea(candidate, selectionArea)) {
+                candidate.getPaint().setPosition(i);
+                selectedDrawing = candidate;
+                slider.setValues(candidate.getPaint().getStrokeWidth());
+                break;
             }
         }
     }
 
     private boolean isPathIntersectingArea(DrawingData drawingData, Path selectionArea) {
-        // Simplified check for intersection by comparing bounding boxes
+        if (drawingData == null || drawingData.getPath() == null || selectionArea == null) {
+            return false;
+        }
         RectF pathBounds = getExpandedBounds(drawingData);
         RectF areaBounds = new RectF();
-        Region r1 = new Region();
-        r1.setPath(
-                drawingData.getPath(),
-                new Region(
-                        (int) (pathBounds.left),
-                        (int) (pathBounds.top),
-                        (int) (pathBounds.right),
-                        (int) (pathBounds.bottom)));
-        Region r2 = new Region();
-        r2.setPath(
-                selectionArea,
-                new Region(
-                        (int) (areaBounds.left),
-                        (int) (areaBounds.top),
-                        (int) (areaBounds.right),
-                        (int) (areaBounds.bottom)));
-        drawingData.getPath().computeBounds(pathBounds, true);
         selectionArea.computeBounds(areaBounds, true);
-        return RectF.intersects(pathBounds, areaBounds);
+        // A tap or a nearly horizontal/vertical drag still gets a usable hit area.
+        float hitPadding = Math.max(TOLERANCE, drawingData.getPaint().getStrokeWidth());
+        areaBounds.inset(-hitPadding, -hitPadding);
+        return RectF.intersects(pathBounds, areaBounds)
+                || areaBounds.contains(pathBounds.centerX(), pathBounds.centerY());
     }
 
     private float calculateDynamicMargin(DrawingData drawingData) {
@@ -593,6 +800,9 @@ public class PaintView extends View {
                         builder.setPositiveButton(
                                 "Delete",
                                 (dialog, id) -> {
+                                    // A destructive edit invalidates any pending redo strokes.
+                                    redoPaint.clear();
+                                    redoPaths.clear();
                                     paths.remove(p);
                                     paints.remove(p);
                                     selectedDrawing = null;

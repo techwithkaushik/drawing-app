@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
+def releaseStorePath = System.getenv("SIGNING_KEY_STORE")
+
 android {
     namespace 'com.ask2784.drawingapp'
     compileSdk 34
@@ -18,11 +20,13 @@ android {
     }
 
     signingConfigs {
-        release {
-            storeFile = file(System.getenv("SIGNING_KEY_STORE"))
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+        if (releaseStorePath) {
+            release {
+                storeFile = file(releaseStorePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
         }
     }
 
@@ -30,10 +34,7 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
-        }
-        debug {
-            signingConfig signingConfigs.release
+            if (releaseStorePath) signingConfig signingConfigs.release
         }
     }
 
@@ -48,6 +49,8 @@ android {
 }
 
 dependencies {
+    testImplementation "junit:junit:4.13.2"
+
     implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "androidx.constraintlayout:constraintlayout:2.2.1"
     implementation "com.google.android.material:material:1.13.0"
