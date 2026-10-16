@@ -1,19 +1,22 @@
 # Let's Draw — Advanced Android Drawing Studio
 
-A lightweight native Android drawing app built with Java, Android Canvas and Material Components.
+A lightweight native Android drawing app built with Java, Android Canvas and Material 3 components.
 
 ## Features
 
-- **Freehand drawing** with smooth rounded strokes.
+- **Freehand brush** with smooth strokes and adjustable stroke width.
 - **Shape tools:** line, rectangle, square, circle and triangle.
-- **Brush customization:** color picker with alpha/brightness controls and adjustable stroke width.
-- **Eraser tool** for removing strokes on the white canvas.
-- **Undo and redo** for recent drawing actions.
-- **Selection mode** for selecting and adjusting existing strokes.
-- **Export and share** artwork as PNG or JPEG through Android's MediaStore and Android Sharesheet.
-- **No broad storage permission** needed to save exported images on modern Android.
+- **Color picker** with alpha and brightness controls.
+- **Eraser** for removing marks on the white canvas.
+- **Undo and redo**, including restoring strokes after Clear.
+- **Selection and move** tools for adjusting existing strokes.
+- **Pinch-to-zoom and two-finger pan**, plus a Reset Zoom / Pan menu action.
+- **Editable project save/load** in app-private storage, using a versioned project format.
+- **Export and share** artwork as PNG or JPEG.
+- **Modern home screen** with direct access to new drawings and saved projects.
+- **No broad storage permission** needed to export images through Android MediaStore.
 - **On-demand export rendering** avoids allocating a full-size bitmap during every canvas redraw.
-- **Debug builds** use Android's standard debug signing and do not require release keystore secrets.
+- **Debug CI builds** do not require release keystore secrets.
 
 ## Build
 
@@ -27,22 +30,22 @@ cd drawing-app
 
 The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
-For a release build, provide the signing environment variables used by the CI workflow:
+For a release build, provide the signing environment variables:
 `SIGNING_KEY_STORE`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, and `SIGNING_KEY_PASSWORD`.
 
-## Usage
+## Project storage
 
-1. Start a new drawing.
-2. Choose the brush or a shape tool from the drawing toolbar.
-3. Set the stroke color and width.
-4. Use Undo/Redo as needed, or select the eraser to paint over marks on the white canvas.
-5. Export to PNG/JPEG or share the image with another app.
+Projects are saved privately inside the app's internal files directory under `drawing-projects/`.
+They remain available to the app and are listed from the home screen. Uninstalling the app removes its private project files unless they have been backed up.
 
-## Known limitations
+The project format stores flattened path coordinates and stroke settings. Saving/loading is intended for editable drawing projects; it is not a vector interchange format.
 
-- Project save/load and canvas zoom are not implemented yet.
-- Erasing paints white, so it is intended for the white canvas rather than transparent artwork.
-- The canvas currently uses a single white background.
+## Current limitations
+
+- Eraser paints white and is intended for the white canvas; it does not erase to transparency.
+- The canvas currently has a white background only.
+- Project paths are flattened when saved, so some curve precision may be lost after reopening.
+- Zoom and pan affect the editor viewport; exports render the drawing at the canvas view's pixel dimensions.
 
 ## Contributing
 
