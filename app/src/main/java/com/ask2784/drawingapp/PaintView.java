@@ -77,6 +77,7 @@ public class PaintView extends View {
     private Paint.Cap cap = Paint.Cap.ROUND;
     private Paint.Join join = Paint.Join.ROUND;
     private Paint.Style style = Paint.Style.STROKE;
+    private boolean fillShapes = false;
 
     public PaintView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -162,23 +163,35 @@ public class PaintView extends View {
     public void setDrawMethod(ShapeType shapeType) {
         this.shapeType = shapeType;
         isShapeDrawing = false;
-        invalidate();
         switch (shapeType) {
             case LINE:
             case BRUSH:
             case CIRCLE:
                 join = Paint.Join.ROUND;
                 cap = Paint.Cap.ROUND;
-                style = Paint.Style.STROKE;
                 break;
             case RECTANGLE:
             case SQUARE:
             case TRIANGLE:
                 join = Paint.Join.MITER;
                 cap = Paint.Cap.BUTT;
-                style = Paint.Style.STROKE;
                 break;
         }
+        style = fillShapes && shapeType != ShapeType.BRUSH && shapeType != ShapeType.LINE
+                ? Paint.Style.FILL : Paint.Style.STROKE;
+        dPaint.setStrokeJoin(join);
+        dPaint.setStrokeCap(cap);
+        dPaint.setStyle(style);
+        invalidate();
+    }
+
+    public void setFillShapes(boolean enabled) {
+        fillShapes = enabled;
+        setDrawMethod(shapeType);
+    }
+
+    public boolean areShapesFilled() {
+        return fillShapes;
     }
 
     public DrawingData saveProject() {
