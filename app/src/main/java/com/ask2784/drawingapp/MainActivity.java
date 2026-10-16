@@ -63,12 +63,12 @@ public class MainActivity extends AppCompatActivity {
                             .setPositiveButton("Delete", (confirm, which) -> {
                                 if (projects[index].delete()) {
                                     Toast.makeText(this, "Project deleted.", Toast.LENGTH_SHORT).show();
+                                    dialog.dismiss();
                                 } else {
                                     Toast.makeText(this, "Could not delete project.", Toast.LENGTH_LONG).show();
                                 }
                             })
                             .show();
-                    dialog.dismiss();
                 });
             });
             dialog.show();
