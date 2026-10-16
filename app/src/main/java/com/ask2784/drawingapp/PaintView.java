@@ -110,7 +110,7 @@ public class PaintView extends View {
         }
         currentStrokeWidth = savedStrokeWidth;
         currentColor = settings.getInt("paintColor", Color.GREEN);
-        canvasBackgroundColor = settings.getInt("canvasBackgroundColor", Color.WHITE);
+        canvasBackgroundColor = settings.getInt("canvasBackgroundColor", Color.WHITE) | 0xFF000000;
         dPaint = new Paint();
         dPaint.setColor(currentColor);
         dPaint.setAntiAlias(true);
@@ -168,7 +168,7 @@ public class PaintView extends View {
         isMoving = false;
         selectedDrawing = null;
         mPath = null;
-        switch (shapeType) {
+        switch (this.shapeType) {
             case LINE:
             case BRUSH:
             case CIRCLE:
@@ -222,7 +222,7 @@ public class PaintView extends View {
         }
         paints = new ArrayList<>(drawingData.getPaintList());
         paths = new ArrayList<>(drawingData.getPathList());
-        canvasBackgroundColor = drawingData.getBackgroundColor();
+        canvasBackgroundColor = drawingData.getBackgroundColor() | 0xFF000000;
         settings.edit().putInt("canvasBackgroundColor", canvasBackgroundColor).apply();
         if (eraserEnabled) currentColor = canvasBackgroundColor;
         redoPaint.clear();
@@ -398,7 +398,7 @@ public class PaintView extends View {
     public void setCanvasBackgroundColor(int color) {
         canvasBackgroundColor = color | 0xFF000000;
         settings.edit().putInt("canvasBackgroundColor", canvasBackgroundColor).apply();
-        if (eraserEnabled) currentColor = color;
+        if (eraserEnabled) currentColor = canvasBackgroundColor;
         selectedDrawing = null;
         invalidate();
     }
@@ -425,6 +425,9 @@ public class PaintView extends View {
         if (!paths.isEmpty() && paths.size() == paints.size()) {
             redoPaint.add(paints.remove(paints.size() - 1));
             redoPaths.add(paths.remove(paths.size() - 1));
+            selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
             invalidate();
         }
     }
@@ -433,6 +436,9 @@ public class PaintView extends View {
         if (!redoPaths.isEmpty() && redoPaths.size() == redoPaint.size()) {
             paints.add(redoPaint.remove(redoPaint.size() - 1));
             paths.add(redoPaths.remove(redoPaths.size() - 1));
+            selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
             invalidate();
         }
     }
@@ -448,6 +454,10 @@ public class PaintView extends View {
             paints.clear();
             paths.clear();
             selectedDrawing = null;
+            isSelecting = false;
+            isMoving = false;
+            isShapeDrawing = false;
+            mPath = null;
             invalidate();
         }
     }
@@ -746,7 +756,11 @@ public class PaintView extends View {
         RectF pathBounds = getExpandedBounds(drawingData);
         RectF areaBounds = new RectF();
         selectionArea.computeBounds(areaBounds, true);
-        return RectF.intersects(pathBounds, areaBounds);
+        // A tap or a nearly horizontal/vertical drag still gets a usable hit area.
+        float hitPadding = Math.max(TOLERANCE, drawingData.getPaint().getStrokeWidth());
+        areaBounds.inset(-hitPadding, -hitPadding);
+        return RectF.intersects(pathBounds, areaBounds)
+                || areaBounds.contains(pathBounds.centerX(), pathBounds.centerY());
     }
 
     private float calculateDynamicMargin(DrawingData drawingData) {
